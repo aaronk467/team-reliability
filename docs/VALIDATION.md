@@ -34,6 +34,8 @@ The updated install script completed dependency installation, production build, 
 
 The [seeded benchmark](../benchmarks/README.md) was run with 200 independent replicates per scenario, reproduced byte-for-byte, and reports chance-signal rates, detection probability with Monte Carlo intervals, and conditional detection delay. The default weekly chart detected 200/200 simulated slowdowns and 168/200 improvements; unchanged processes signaled in 5/200 runs. These are results for the documented simulation, not field-performance guarantees.
 
-Public validation of the version 0.2 changes is pending deployment; the earlier public checks above remain evidence for the original release.
+Version **0.2.0**, deployed from source commit `608f0a8`, passed public verification. Health, API docs, and OpenAPI returned HTTP 200; OpenAPI reported `0.2.0`. Each public dataset exactly matched its local CSV, and all three high-priority analyses using the new defaults matched the entire local analysis response with finite numbers. South monitoring late rates and exact-binomial signals were stable 46%/0, deterioration 100%/4, and improvement 6%/3.
+
+`python scripts/browser_smoke.py --url https://responsewatch-lpj2.onrender.com --ca-forward` passed the same complete workflow listed above, including the open-call lifecycle, reload persistence, duplicate-ID rejection, corrupted-storage preservation/recovery, and mobile layout. No page errors occurred. The CA forwarding method used real HTTPS responses with the installed trust bundle and kept TLS verification enabled, as described above.
 
 The version 0.2 Docker image built successfully. Its running API reported version `0.2.0`, used the new log/seven-day defaults, and returned the expected four South deterioration signals. Package installation retained TLS verification with the optional cloud CA build secret.

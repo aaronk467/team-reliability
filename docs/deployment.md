@@ -4,8 +4,8 @@
 
 - Dashboard: [https://responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com)
 - Interactive API documentation: [https://responsewatch-lpj2.onrender.com/docs](https://responsewatch-lpj2.onrender.com/docs)
-- Render’s deployment screenshot reports **Live** for commit `16d90d6`.
-- Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All three demo analyses matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: the dashboard loaded with three charts, priority filtering and all three dataset analyses worked, and no page or HTTP errors occurred.
+- Verified live version **0.2.0**, deployed from commit `608f0a8`.
+- Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All three demo analyses matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: default high/log/seven-day settings, three charts, all demo outcomes, daily/weekly controls, open-call start/overdue/arrival transitions, reload persistence, denominator integrity, duplicate-ID protection, corrupt-storage recovery, CSV export/error handling, and mobile layout. No browser page errors occurred.
 
 When verifying a new deployment, load the dashboard and API documentation, select each of the three demonstration datasets, run an analysis, and exercise CSV import. Free Render instances may need time to wake.
 
@@ -37,3 +37,5 @@ A hosting account is required to recreate the service. After creation, use its p
 The Dockerfile supports an optional BuildKit secret named `cloud_ca` containing the environment's trusted CA bundle. Supply it with `--secret id=cloud_ca,src=/etc/ssl/certs/ca-certificates.crt` when needed. The build uses that bundle only for package installation and never disables TLS verification or bakes the cloud certificate into the runtime image. A proxy-managed Docker daemon may also require explicit `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` build arguments and DNS resolution for its proxy host. These options are cloud-specific; ordinary hosting builds use the standard Docker command above.
 
 For a reproducible presentation with expected statistics, follow the [judge walkthrough](DEMO.md). Changes described there require deploying the current source; the earlier public-validation record identifies the version previously checked.
+
+The version 0.2 deployment was started manually with **Manual Deploy → Deploy latest commit**. If a future source update does not appear automatically, use that action and verify `/openapi.json` reports the expected version before running release checks. Documentation-only updates do not require redeploying the service.
