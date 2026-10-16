@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools==75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "responsewatch"
+version = "0.1.0"
+description = "Frozen-baseline ambulance response monitoring"
+requires-python = ">=3.11"
+dependencies = ["fastapi==0.115.6", "uvicorn==0.34.0"]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["tests"]
