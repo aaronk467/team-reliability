@@ -22,7 +22,7 @@ Review tests verify disabled/authenticated modes, independent client/file persis
 - CSV export retaining shift/traffic/units columns, invalid-upload errors, and a 390px mobile layout.
 - No browser page errors.
 
-The script requires Playwright 1.62.0 and Chromium. `--browser auto` selects the installed Playwright browser; `--browser /usr/bin/chromium` selects a system browser. CI installs browser tools, waits for a healthy locally started API, and runs the same workflow. CI execution must be confirmed separately from these completed local checks.
+The script requires Playwright 1.62.0 and Chromium. `--browser auto` selects the installed Playwright browser; `--browser /usr/bin/chromium` selects a system browser. CI installs browser tools, waits for a healthy locally started API, and runs the same workflow. [GitHub CI](https://github.com/aaronk467/team-reliability/actions/runs/38975394899) completed successfully in 56 seconds, including pinned installs, the 56-test suite, exact dataset regeneration, frontend build and Chromium workflow.
 
 ## Benchmark
 
@@ -32,8 +32,10 @@ Under the primary independent-call generator, predictive weekly limits signaled 
 
 ## Public deployment status
 
-Version 0.2.0 from commit 608f0a8 was previously verified publicly. Version 0.3.0 requires deployment and new public API/browser checks; those are not claimed yet. The newer field-like CSVs contain 845 high-priority calls per scenario, rather than the older release's 720.
+Render reports commit `de729ae` Live. Public OpenAPI reports version 0.3.0. All three datasets exactly match the local CSVs; six public analyses (three scenarios × predictive/plugin models) match the complete local library responses. The field-like CSVs contain 845 high-priority calls per scenario. Public shared review config reports browser-local mode, accurately reflecting that persistent server storage is not configured.
+
+The complete browser workflow listed above also passed against `https://responsewatch-lpj2.onrender.com`, including the new predictive controls, delay context, review validation/persistence, optional-column export and all three expected demo outcomes. No browser page errors occurred. This environment used the script's `--ca-forward` option to forward browser requests through Python's trusted system CA store; HTTPS certificate verification remained enabled.
 
 Browser-local open/completed records and local reviews are isolated to the user's browser/source. Optional server reviews do not make the dispatch register shared or establish durable storage on a free ephemeral host.
 
-The version 0.3 Docker image built successfully with TLS verification retained. A running container reported version0.3.0 and returned an 845-call high-priority predictive analysis exactly equal to the local library, with full typed metadata and the expected safely disabled optional shared mode.
+The version 0.3 Docker image built successfully with TLS verification retained. A running container reported version 0.3.0 and returned an 845-call high-priority predictive analysis exactly equal to the local library, with full typed metadata and the expected disabled optional shared mode.

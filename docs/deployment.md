@@ -4,8 +4,8 @@
 
 - Dashboard: [https://responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com)
 - Interactive API documentation: [https://responsewatch-lpj2.onrender.com/docs](https://responsewatch-lpj2.onrender.com/docs)
-- Previously verified live version **0.2.0**, deployed from commit `608f0a8`. Version 0.3 changes require deployment and fresh public checks.
-- Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All three demo analyses matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: default high/log/seven-day settings, three charts, all demo outcomes, daily/weekly controls, open-call start/overdue/arrival transitions, reload persistence, denominator integrity, duplicate-ID protection, corrupt-storage recovery, CSV export/error handling, and mobile layout. No browser page errors occurred.
+- Verified live API version **0.3.0**, deployed from commit `de729ae`. Both analysis models and all three field-like datasets match local results exactly.
+- Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All six demo analyses (three datasets × two models) matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: predictive/log/seven-day defaults, model switching, three charts, all demo outcomes, delay context, review validation/persistence, daily/weekly controls, open-call start/overdue/arrival transitions, reload persistence, denominator integrity, duplicate-ID protection, corrupt-storage recovery, CSV export/error handling, and mobile layout. No browser page errors occurred.
 
 When verifying a new deployment, load the dashboard and API documentation, select each of the three demonstration datasets, run an analysis, and exercise CSV import. Free Render instances may need time to wake.
 

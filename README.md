@@ -63,15 +63,15 @@ Regenerate without touching tracked files: `python datasets/generate.py --output
 
 ## Validation and reproducibility
 
-The [validation record](docs/VALIDATION.md) distinguishes current local checks from previously verified deployments. Tests include independently known probabilities, log I-MR, large counts, zero/all-late baselines, frozen reference periods, typed API parity, context denominators, dataset byte reproducibility, and protected review persistence/conflicts.
+The [validation record](docs/VALIDATION.md) records local and public release checks. Tests include independently known probabilities, log I-MR, large counts, zero/all-late baselines, frozen reference periods, typed API parity, context denominators, dataset byte reproducibility, and protected review persistence/conflicts.
 
 Run `.venv/bin/python -m pytest -q`. The [benchmark](benchmarks/README.md) compares predictive and plug-in limits with 200 runs per main scenario and prespecified sensitivity cases. Reproduce it with `.venv/bin/python scripts/benchmark.py --output /tmp/benchmark.json`. Results include Monte Carlo uncertainty and detection delay; no universal false-alarm guarantee is claimed.
 
-CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates CSVs in a temporary directory, builds React/Vite, and exercises the built application in Chromium. The browser script is `python scripts/browser_smoke.py --url http://127.0.0.1:8000 --browser auto` after installing Playwright 1.62.0 and its Chromium browser. CI results must be checked separately from local execution.
+CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates CSVs in a temporary directory, builds React/Vite, and exercises the built application in Chromium. The browser script is `python scripts/browser_smoke.py --url http://127.0.0.1:8000 --browser auto` after installing Playwright 1.62.0 and its Chromium browser. The [GitHub CI run for this release](https://github.com/aaronk467/team-reliability/actions/runs/38975394899) passed the full pipeline.
 
 ## Deployment and storage limits
 
-The committed Dockerfile and Render Blueprint serve the frontend and API together. See [deployment.md](docs/deployment.md) for reproduction and optional shared storage configuration. Current public version must be verified through `/openapi.json` after deployment; the new 0.3 release is pending deployment until recorded in VALIDATION.md.
+The committed Dockerfile and Render Blueprint serve the frontend and API together. See [deployment.md](docs/deployment.md) for reproduction and optional shared storage configuration. Version 0.3.0 from commit `de729ae` is deployed; public analyses for all three datasets and both models exactly match the local library. Verify `/openapi.json` after future deployments.
 
 Open dispatches and added completed calls remain browser-local and source-specific. Shared mode applies to resolution reviews, not the dispatch register. No authenticated agency-wide dispatch database, correction audit trail, background emergency notification, or clinical outcome model is supplied. Review notes should use synthetic/nonpersonal aliases and information. Free Render instance files are ephemeral; a configured SQLite path alone does not prove durable storage.
 
