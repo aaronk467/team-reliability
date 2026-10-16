@@ -1,8 +1,8 @@
 """Statistical monitoring. All calendar days are UTC; limits use baseline only.
 
 I-MR constants: d2=1.128 and D4=3.267 for successive pairs. Default log
-I-MR limits backtransform to minutes. Nonoverlapping exact-binomial count
-limits use pooled baseline late risk. Signals are only points strictly outside
+I-MR limits backtransform to minutes. Nonoverlapping beta-binomial posterior
+predictive limits integrate uncertainty in baseline late risk. Signals are only points strictly outside
 limits. Neither chart adjusts for case mix or unresolved dispatches.
 """
 from datetime import datetime, timedelta, timezone
@@ -28,10 +28,12 @@ def validate_records(records):
         raise ValueError("records must be a nonempty list")
     if len(records) > 100000:
         raise ValueError("at most 100000 records are supported")
+    from .delay_patterns import validate_context
     result, ids = [], set()
     for row in records:
         if not isinstance(row, dict):
             raise ValueError("each record must be an object")
+        validate_context(row)
         clean = dict(row)
         for key in ("id", "zone", "priority"):
             if not isinstance(row.get(key), str) or not row[key].strip():
@@ -110,6 +112,47 @@ def _binomial_bounds(n, p, alpha=CHART_ALPHA):
     return lower, n
 
 
+
+def _beta_binomial_bounds(n, a, b, alpha=CHART_ALPHA):
+    """Central beta-binomial quantiles using mode-centered relative masses.
+
+    For K|p~Binomial(n,p), p~Beta(a,b), the adjacent mass ratio is
+    P(k+1)/P(k) = (n-k)/(k+1) * (k+a)/(n-k-1+b). Starting at a global
+    mode avoids factorials, gamma cancellation, tiny PMFs, and overflow.
+    This also handles monotone and U-shaped beta-binomial distributions.
+    Each posterior-predictive tail outside the integer bounds is at most
+    alpha/2, conditional on the Beta-Binomial model; this is not a claim
+    of uniform frequentist false-alarm calibration for a fixed unknown p.
+    """
+    if a > 1 and b > 1:
+        mode = min(n, max(0, math.floor((n + 1) * (a - 1) / (a + b - 2))))
+    elif a <= 1 and b > 1:
+        mode = 0
+    elif b <= 1 and a > 1:
+        mode = n
+    else:
+        # Both shapes <=1: largest mass is at an endpoint. Its ordering
+        # follows a versus b; a=b=1 is uniform and either endpoint works.
+        mode = n if a > b else 0
+    weights = [0.0] * (n + 1)
+    weights[mode] = 1.0
+    for k in range(mode, 0, -1):
+        weights[k - 1] = weights[k] * k / (n - k + 1) * (n - k + b) / (k - 1 + a)
+    for k in range(mode, n):
+        weights[k + 1] = weights[k] * (n - k) / (k + 1) * (k + a) / (n - k - 1 + b)
+    total = math.fsum(weights)
+    lower_target, upper_target = alpha / 2 * total, (1 - alpha / 2) * total
+    lower = None
+    cumulative = 0.0
+    for k, weight in enumerate(weights):
+        cumulative += weight
+        if lower is None and cumulative >= lower_target:
+            lower = k
+        if cumulative >= upper_target:
+            return lower, k
+    return lower, n
+
+
 def _comparison(rows, target, baseline_end):
     before = [r for r in rows if r['_dt'].date() < baseline_end]
     after = [r for r in rows if r['_dt'].date() >= baseline_end]
@@ -121,7 +164,7 @@ def _comparison(rows, target, baseline_end):
 
 
 def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
-            imr_scale="log", aggregation_days=7):
+            imr_scale="log", aggregation_days=7, p_method="beta_binomial"):
     """Monitor completed dispatches using frozen baseline limits.
 
     Baseline is the first N UTC calendar days of the selected priority.
@@ -131,7 +174,12 @@ def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
     zero has no log-chart estimate and generates a warning, rather than an
     invented offset. Raw-minute charts are available explicitly.
 
-    P charts use exact binomial quantile limits with plug-in baseline risk.
+    Default p charts integrate baseline risk uncertainty using a Jeffreys
+    Beta(1/2,1/2) prior and frozen Beta(k+1/2,m-k+1/2) posterior, where
+    k of m baseline calls are late. Limits are beta-binomial predictive
+    quantiles for each future period's actual count. Baseline points fitted
+    this posterior and are not evaluated as predictive signals. Optional
+    exact_binomial retains the legacy plug-in chart for comparison.
     Bins are nonoverlapping and restart at the baseline/monitor boundary.
     Missing dates are not fabricated as successful/zero-demand calls.
     Comparison deltas describe observed change, not causal intervention effects.
@@ -144,8 +192,11 @@ def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
         raise ValueError("aggregation_days must be an integer from 1 to 365")
     if imr_scale not in ('log', 'raw'):
         raise ValueError("imr_scale must be 'log' or 'raw'")
+    if not isinstance(p_method,str) or p_method not in ('beta_binomial', 'exact_binomial'):
+        raise ValueError("p_method must be 'beta_binomial' or 'exact_binomial'")
     if not isinstance(priority,str) or not priority.strip():
         raise ValueError("priority must be a nonempty string")
+    from .delay_patterns import summarize_delays
     rows = validate_records(records)
     if priority != "all":
         rows = [r for r in rows if r["priority"] == priority]
@@ -201,9 +252,19 @@ def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
             points.append(dict(id=r["id"],dispatched_at=r["dispatched_at"],minutes=r["minutes"],in_baseline=r["_dt"].date()<end,
                                signal=bool(valid and values[i] is not None and (r["minutes"]<lcl or r["minutes"]>ucl)), moving_range=mr,
                                mr_signal=bool(valid and mr is not None and mr>mrucl)))
-        p = sum(r["minutes"]>target_minutes for r in baseline)/len(baseline) if baseline else None
+        baseline_late = sum(r["minutes"]>target_minutes for r in baseline)
+        p = baseline_late/len(baseline) if baseline else None
+        predictive = p_method == 'beta_binomial'
+        posterior_a = baseline_late + .5 if predictive and baseline else None
+        posterior_b = len(baseline) - baseline_late + .5 if predictive and baseline else None
+        posterior_mean = posterior_a/(posterior_a+posterior_b) if posterior_a is not None else None
+        chart_center = posterior_mean if predictive else p
         if p in (0,1):
-            warnings.append("Baseline late proportion is 0 or 1: binomial limits degenerate. A change flags any contrary outcome, but the baseline does not establish zero or certain population risk; collect more data.")
+            warnings.append(
+                "Baseline late proportion is 0 or 1: posterior predictive limits retain uncertainty; zero observed events does not establish zero or certain population risk."
+                if predictive else
+                "Baseline late proportion is 0 or 1: binomial limits degenerate. A change flags any contrary outcome, but the baseline does not establish zero or certain population risk; collect more data."
+            )
         if not baseline:
             warnings.append("No baseline calls for this zone: chart limits unavailable.")
         bins = {}
@@ -220,32 +281,54 @@ def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
             n=len(period_rows); late=sum(r["minutes"]>target_minutes for r in period_rows)
             if p is not None:
                 if n not in bound_cache:
-                    bound_cache[n] = _binomial_bounds(n,p)
+                    bound_cache[n] = _beta_binomial_bounds(n,posterior_a,posterior_b) if predictive else _binomial_bounds(n,p)
                 low_count, high_count = bound_cache[n]
                 lower, upper = low_count/n, high_count/n
             else:
                 low_count = high_count = lower = upper = None
             periods.append(dict(date=period_start.isoformat(),period_start=period_start.isoformat(),period_end=period_end.isoformat(),
                                 n=n,late_count=late,proportion=late/n,lcl=lower,ucl=upper,lcl_count=low_count,ucl_count=high_count,
-                                in_baseline=in_baseline,signal=bool(p is not None and (late<low_count or late>high_count))))
+                                in_baseline=in_baseline,signal_evaluated=bool(p is not None and (not predictive or not in_baseline)),
+                                signal=bool(p is not None and (not predictive or not in_baseline) and (late<low_count or late>high_count))))
         baseline_i = sum(point["in_baseline"] and point["signal"] for point in points)
         baseline_mr = sum(point["in_baseline"] and point["mr_signal"] for point in points)
         baseline_p = sum(point["in_baseline"] and point["signal"] for point in periods)
         if baseline_i or baseline_mr or baseline_p:
             warnings.append(
-                f"Baseline may be unstable: {baseline_i} I-chart, {baseline_mr} moving-range, "
-                f"and {baseline_p} p-chart rule-1 signals. Review baseline conditions before interpreting frozen limits."
+                (f"Baseline may be unstable: {baseline_i} I-chart and {baseline_mr} moving-range rule-1 signals. "
+                 "Baseline predictive p points are not evaluated. Review baseline conditions before interpreting frozen limits.")
+                if predictive else
+                (f"Baseline may be unstable: {baseline_i} I-chart, {baseline_mr} moving-range, "
+                 f"and {baseline_p} p-chart rule-1 signals. Review baseline conditions before interpreting frozen limits.")
             )
+        review_reasons = []
+        if len(baseline) < 20:
+            review_reasons.append("Fewer than 20 baseline calls.")
+        if not valid:
+            review_reasons.append("I-MR baseline limits unavailable.")
+        if baseline_i or baseline_mr:
+            review_reasons.append("Baseline I/MR signals require investigation before treating the reference as stable.")
+        baseline_quality = dict(baseline_count=len(baseline), i_signals=baseline_i, mr_signals=baseline_mr,
+                                p_signals=None if predictive else baseline_p, imr_limits_available=valid,
+                                review_recommended=bool(review_reasons), reasons=review_reasons)
         zones.append(dict(zone=zone,**_summary(group,target_minutes),baseline_count=len(baseline),warnings=warnings,
-                          comparison=_comparison(group,target_minutes,end),
+                          comparison=_comparison(group,target_minutes,end),baseline_quality=baseline_quality,
+                          delay_patterns=summarize_delays(group,target_minutes),
                           imr=dict(center=center,lcl=lcl,ucl=ucl,mr_center=mrbar,mr_ucl=mrucl,scale=imr_scale,
                                    mr_units='log ratio' if imr_scale=='log' else 'minutes',points=points),
-                          p_chart=dict(center=p,method='exact_binomial',alpha=CHART_ALPHA,aggregation_days=aggregation_days,points=periods)))
+                          p_chart=dict(center=chart_center,baseline_late_rate=p,method=p_method,alpha=CHART_ALPHA,
+                                       prior_alpha=.5 if predictive else None,prior_beta=.5 if predictive else None,
+                                       posterior_alpha=posterior_a,posterior_beta=posterior_b,posterior_mean=posterior_mean,
+                                       baseline_signal_policy='not_evaluated_fitted_reference' if predictive else 'descriptive_diagnostic',
+                                       aggregation_days=aggregation_days,points=periods)))
     return dict(summary=_summary(rows,target_minutes),comparison=_comparison(rows,target_minutes,end),
+                delay_patterns=summarize_delays(rows,target_minutes),
                 zones=zones,target_minutes=target_minutes,baseline_days=baseline_days,
                 baseline_start=start.isoformat(),baseline_end=(end-timedelta(days=1)).isoformat(),priority=priority,
-                imr_scale=imr_scale,aggregation_days=aggregation_days,
+                imr_scale=imr_scale,aggregation_days=aggregation_days,p_method=p_method,
                 warnings=["Observational signals prompt investigation, not causal attribution. Completed calls only; missing arrivals require separate follow-up.",
                           "Pooled priorities can confound zone comparisons: filter priority to assess case mix before operational decisions." if priority == "all" else "Priority-stratified analysis still requires review of case mix and dispatch practice.",
+                          "Beta-binomial predictive limits integrate baseline-risk uncertainty under a fixed Jeffreys prior and independent common-risk Bernoulli calls. Coverage is conditional on this model, not a guaranteed fixed-risk frequentist false-alarm rate. Baseline points fit the posterior and are not predictive tests."
+                          if p_method=='beta_binomial' else
                           "Exact-binomial limits use estimated baseline risk as a plug-in, not a known population probability; they omit baseline-estimation uncertainty and require independent, common-risk calls within each period.",
                           "Log I-MR reduces skew under multiplicative variation but does not guarantee lognormality, independent calls, or calibrated false-alarm rates. Multiple repeated charts increase chance signals." if imr_scale=='log' else "Raw I-MR can flag expected extremes from a skewed distribution. Multiple repeated charts increase chance signals."])

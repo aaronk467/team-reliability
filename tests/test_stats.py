@@ -49,7 +49,7 @@ def test_variable_denominator_p_chart_known_limits():
             row=records([4 if i%2==0 else 10],[day])[0]
             row['id']=f'{day}-{i}'
             rows.append(row)
-    chart=analyze(rows,baseline_days=1,aggregation_days=1)['zones'][0]['p_chart']
+    chart=analyze(rows,baseline_days=1,aggregation_days=1,p_method='exact_binomial')['zones'][0]['p_chart']
     assert chart['center']==.5
     assert chart['points'][0]['lcl']==pytest.approx(.35)
     assert chart['points'][0]['ucl']==pytest.approx(.65)
@@ -61,11 +61,13 @@ def test_sparse_zones_and_degenerate_proportions():
     out=analyze(rows,baseline_days=1)
     a,b=out['zones']
     assert a['imr']['ucl'] is None
-    assert a['p_chart']['center']==0
+    assert a['p_chart']['baseline_late_rate']==0
+    assert a['p_chart']['center']==.25
     assert b['baseline_count']==0
     assert b['p_chart']['points'][0]['ucl'] is None
     assert not b['p_chart']['points'][0]['signal']
-    assert analyze(records([10]))['zones'][0]['p_chart']['center']==1
+    assert analyze(records([10]))['zones'][0]['p_chart']['baseline_late_rate']==1
+    assert analyze(records([10]))['zones'][0]['p_chart']['center']==.75
 
 def test_planted_south_shift_in_demo():
     import csv
@@ -89,7 +91,8 @@ def test_baseline_instability_warning_reports_signals():
     assert sum(p['signal'] for p in zone['imr']['points'])==1
     assert sum(p['mr_signal'] for p in zone['imr']['points'])==2
     warning=next(w for w in zone['warnings'] if 'Baseline may be unstable' in w)
-    assert '1 I-chart, 2 moving-range, and 0 p-chart' in warning
+    assert '1 I-chart and 2 moving-range' in warning
+    assert 'predictive p points are not evaluated' in warning
 
 def precise_records(values, days=None):
     from datetime import datetime,timedelta,timezone
@@ -182,3 +185,95 @@ def test_zero_log_behavior_never_uses_invented_offset():
 @pytest.mark.parametrize('kwargs',[{'aggregation_days':True},{'aggregation_days':0},{'aggregation_days':366},{'imr_scale':'invalid'}])
 def test_invalid_new_settings(kwargs):
     with pytest.raises(ValueError):analyze(records([4,6]),**kwargs)
+
+
+def test_beta_binomial_uniform_known_answer():
+    from responsewatch.stats import _beta_binomial_bounds,CHART_ALPHA
+    # Beta(1,1) mixing yields P(K=k)=1/(n+1), so inverse CDF is analytic.
+    for n in (4, 19, 1000):
+        expected_low=math.ceil(CHART_ALPHA/2*(n+1))-1
+        expected_high=math.ceil((1-CHART_ALPHA/2)*(n+1))-1
+        assert _beta_binomial_bounds(n,1,1)==(expected_low,expected_high)
+    assert _beta_binomial_bounds(1000,1,1)==(1,999)
+
+
+def test_beta_binomial_bounds_match_independent_beta_function_enumeration():
+    from responsewatch.stats import _beta_binomial_bounds,CHART_ALPHA
+    # Independent combinatorial/Beta-function evaluation, not production's
+    # adjacent-mass recurrence. Includes endpoint modes and a U-shaped case.
+    for n,a,b in [(4,.5,4.5),(28,10.5,70.5),(100,33.5,47.5),(28,80.5,.5),(40,.5,.5),(19,1,3)]:
+        def beta_log(x,y):
+            return math.lgamma(x)+math.lgamma(y)-math.lgamma(x+y)
+        pmf=[math.comb(n,k)*math.exp(beta_log(k+a,n-k+b)-beta_log(a,b)) for k in range(n+1)]
+        assert math.fsum(pmf)==pytest.approx(1,abs=1e-12)
+        def quantile(q):
+            return next(k for k in range(n+1) if math.fsum(pmf[:k+1])>=q)
+        low,high=_beta_binomial_bounds(n,a,b)
+        assert (low,high)==(quantile(CHART_ALPHA/2),quantile(1-CHART_ALPHA/2))
+        assert math.fsum(pmf[:low]) <= CHART_ALPHA/2+1e-12
+        assert math.fsum(pmf[high+1:]) <= CHART_ALPHA/2+1e-12
+
+
+def test_beta_binomial_large_bins_stable_and_symmetric():
+    from responsewatch.stats import _beta_binomial_bounds,_binomial_bounds
+    low,high=_beta_binomial_bounds(100000,50000.5,50000.5)
+    assert low+high==100000
+    assert 0<low<49526<50474<high<100000  # Wider than known-p Binomial.
+    rare=_beta_binomial_bounds(100000,.5,100000.5)
+    common=_beta_binomial_bounds(100000,100000.5,.5)
+    assert rare[0]==0 and 0<rare[1]<100000
+    assert common==(100000-rare[1],100000-rare[0])
+
+
+def test_predictive_posterior_is_frozen_and_baseline_is_not_a_forecast():
+    rows=precise_records([4,10,10,12],[1,1,2,2])
+    a=analyze(rows,baseline_days=1)['zones'][0]['p_chart']
+    changed=analyze(precise_records([4,10,4,4],[1,1,2,2]),baseline_days=1)['zones'][0]['p_chart']
+    assert a['method']=='beta_binomial'
+    assert a['prior_alpha']==a['prior_beta']==.5
+    assert a['posterior_alpha']==a['posterior_beta']==1.5
+    assert a['posterior_mean']==a['center']==.5
+    assert a['baseline_late_rate']==.5
+    assert a['baseline_signal_policy']=='not_evaluated_fitted_reference'
+    assert not a['points'][0]['signal_evaluated'] and not a['points'][0]['signal']
+    assert a['points'][1]['signal_evaluated']
+    for key in ('posterior_alpha','posterior_beta','posterior_mean','center'):
+        assert a[key]==changed[key]
+    assert [(p['lcl_count'],p['ucl_count']) for p in a['points']]==[(p['lcl_count'],p['ucl_count']) for p in changed['points']]
+
+
+def test_zero_or_all_late_baseline_has_predictive_uncertainty():
+    for baseline_value in (4,10):
+        baseline_values=[baseline_value]*4
+        rows=precise_records(baseline_values+[4]*28,[1]*4+[2]*28)
+        output=analyze(rows,baseline_days=1)
+        chart=output['zones'][0]['p_chart']
+        assert 0<chart['posterior_mean']<1
+        period=chart['points'][1]
+        assert period['lcl_count']<period['ucl_count']
+        legacy=analyze(rows,baseline_days=1,p_method='exact_binomial')['zones'][0]['p_chart']
+        assert legacy['posterior_alpha'] is None
+        assert legacy['prior_alpha'] is None
+        assert legacy['center'] in (0,1)
+        assert legacy['points'][1]['lcl_count']==legacy['points'][1]['ucl_count']
+
+
+def test_baseline_quality_marks_instability_and_short_or_missing_reference():
+    values=[4,6]*15+[40]+[4,6]*15
+    unstable=analyze(precise_records(values),imr_scale='raw')['zones'][0]['baseline_quality']
+    assert unstable['review_recommended']
+    assert unstable['i_signals']==1 and unstable['mr_signals']==2
+    assert unstable['p_signals'] is None
+    assert unstable['imr_limits_available']
+    assert any('I/MR signals' in reason for reason in unstable['reasons'])
+    rows=precise_records([4,10],[1,2]);rows[1]['zone']='B'
+    absent=analyze(rows,baseline_days=1)['zones'][1]
+    assert absent['baseline_quality']['review_recommended']
+    assert not absent['baseline_quality']['imr_limits_available']
+    assert absent['p_chart']['posterior_mean'] is None
+    assert not absent['p_chart']['points'][0]['signal_evaluated']
+
+
+@pytest.mark.parametrize('method',['bad','',None,1,[],{}])
+def test_invalid_p_method(method):
+    with pytest.raises(ValueError):analyze(records([4,6]),p_method=method)

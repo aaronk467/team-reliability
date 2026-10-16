@@ -1,91 +1,78 @@
 # ResponseWatch
 
-[Open the live app](https://responsewatch-lpj2.onrender.com) · [Live API documentation](https://responsewatch-lpj2.onrender.com/docs)
+[Live dashboard](https://responsewatch-lpj2.onrender.com) · [Public API](https://responsewatch-lpj2.onrender.com/docs) · [Judge walkthrough](docs/DEMO.md)
 
-ResponseWatch helps ambulance dispatch supervisors identify zones with unusually variable dispatch-to-arrival times and frequent missed response targets. A React/Vite dashboard presents a Python statistical library and FastAPI REST API. The focus is transparent statistical process control, with three reproducible synthetic dispatch logs for demonstration.
+ResponseWatch helps ambulance dispatch supervisors investigate response-time variation, missed targets, and zones needing follow-up. It meets the assignment's React/Vite frontend requirement and provides both an installable Python statistical library and FastAPI REST API. No patient information is required. The eight-minute example target is illustrative, not a universal medical standard.
 
-Select a dataset, priority, response-time target, and baseline length. Review zone summaries, the empirical 90th percentile, late-call risk with Wilson 95% intervals, log-scale individuals/moving-range charts, and seven-day exact-binomial late-fraction charts. Compare baseline and monitoring risk and p90 directly; raw-scale I-MR and one-day bins remain available. Compare the stable scenario with the planted South deterioration and subsequent-period improvement scenarios. Signals identify where to investigate; they do not establish why a delay occurred or predict patient outcomes. The eight-minute default is illustrative and must be replaced with locally agreed policy.
+![Synthetic South-zone demonstration](docs/dashboard.png)
 
-![ResponseWatch dashboard using the synthetic South-shift scenario](docs/dashboard.png)
+## What it does
+
+- Log open dispatches, show elapsed/overdue counts, and validate arrivals before adding them to completed-call statistics.
+- Compare baseline and monitoring late proportions, Wilson 95% intervals, and empirical p90 by zone and priority.
+- Monitor individual log response times and moving ranges against frozen baseline limits.
+- Use beta-binomial posterior predictive late-count limits, integrating baseline uncertainty with a stated Jeffreys Beta(0.5,0.5) prior. Retain exact-binomial plug-in limits for comparison.
+- Show baseline quality diagnostics without certifying the reference as stable.
+- Explore recorded delay reasons in Pareto order, annotation coverage, and unadjusted shift/traffic/available-unit strata. Associations are not causal explanations.
+- Assign a review owner, action, status, and follow-up date. Browser-local mode works immediately; optional token-protected shared SQLite mode needs operator-provided persistent storage.
+- Import/export CSV, retaining optional context columns, and export review backups.
 
 ## Run locally
 
-Use Python 3.11+ and Node.js 22.12+. From the repository root:
+Use Python 3.11+ and Node.js 22.12+ (Python 3.12 and Node 24 were verified). From the repository root:
 
 ```sh
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -e .
-pytest
-uvicorn responsewatch.api:app --host 0.0.0.0 --port 8000
+./scripts/install.sh
+.venv/bin/python -m uvicorn responsewatch.api:app --host 0.0.0.0 --port 8000
 ```
 
-In a second terminal:
+Build before starting FastAPI: the server mounts the production frontend at startup. Open `http://localhost:8000`; API docs are at `/docs`. For frontend development, run `npm run dev` inside `frontend` while the API runs on port 8000. Vite proxies API/docs requests.
 
-```sh
-cd frontend
-npm ci
-npm run dev -- --host 0.0.0.0
-```
+Manual installation is `python -m venv .venv`, `.venv/bin/pip install -r requirements.txt`, `.venv/bin/pip install --no-deps -e .`, then `npm ci && npm run build` in `frontend`. Dependency installation retains normal TLS verification. The setup script selects a writable npm cache for cloud environments.
 
-Open the Vite URL printed by the frontend command. The development frontend proxies API requests to port 8000. API documentation is available at `http://localhost:8000/docs`. For a production frontend build run `npm run build` inside `frontend`, then start or restart Uvicorn: the static frontend is mounted when the server starts.
-
-## API and library
-
-`GET /api/datasets` lists bundled demonstrations; `GET /api/datasets/{name}` retrieves one. `POST /api/analyze` accepts completed dispatch records and settings:
-
-```json
-{
-  "records": [
-    {"id":"demo-1","zone":"North","priority":"high","dispatched_at":"2026-01-01T12:00:00Z","arrived_at":"2026-01-01T12:07:00Z","delay_reason":""}
-  ],
-  "target_minutes": 8,
-  "baseline_days": 20,
-  "priority": "high",
-  "imr_scale": "log",
-  "aggregation_days": 7
-}
-```
-
-This example illustrates the record format; useful control charts require multiple baseline observations. Use the bundled datasets for a complete demonstration. The interactive `/docs` page documents request schemas and lets you try the endpoints. [API reference](docs/API.md) describes response fields. The installable Python package is `responsewatch`:
+## Python library and API
 
 ```python
 import csv
-from responsewatch.stats import analyze, validate_records
+from responsewatch import analyze
 
 with open("datasets/south_shift.csv", newline="") as handle:
     records = list(csv.DictReader(handle))
 report = analyze(records, target_minutes=8, baseline_days=20,
-                 priority="high", imr_scale="log", aggregation_days=7)
-print(report["summary"])
+                 priority="high", imr_scale="log", aggregation_days=7,
+                 p_method="beta_binomial")
+south = next(z for z in report["zones"] if z["zone"] == "South")
+print(south["comparison"])
 ```
 
-`analyze(records, target_minutes=8.0, baseline_days=20, priority="all", imr_scale="log", aggregation_days=7)` returns overall and per-zone risk summaries, baseline/monitoring comparisons, baseline dates, I-MR points and limits, aggregated exact-binomial p-chart points and limits, and warnings. `target_minutes` must be finite and positive; `baseline_days` is an integer from 1 to 3650; `priority` is an exact priority label or `all`; `imr_scale` is `log` or `raw`; `aggregation_days` is an integer from 1 to 365 selecting nonoverlapping bin length (seven days by default, one day for finer but low-power review). `validate_records(records)` validates a nonempty list of up to 100,000 record dictionaries and returns normalized copies sorted by dispatch time and ID. Invalid inputs raise `ValueError`. See [the statistical source](backend/responsewatch/stats.py) and [methods](docs/methods.md) for implementation, assumptions, and interpretation. Validation includes independently known statistical answers before presentation checks.
+`analyze` accepts 1–100,000 completed record dictionaries. Required fields are `id`, `zone`, `priority`, `dispatched_at`, and `arrived_at`. Optional fields include `delay_reason`, `shift`, `traffic`, and `units_available`. The target must be finite and positive; baseline days 1–3650; aggregation days 1–365; scale `log` or `raw`; model `beta_binomial` or `exact_binomial`. Library priority defaults to `all`; the UI defaults to `high`. Invalid records/settings raise `ValueError` or return HTTP 422 through the API.
 
-## Demonstrations and collection
+`validate_records(records)` returns normalized copies ordered by dispatch and ID, with calculated minutes and internal `_dt` timestamps. Analysis returns overall/per-zone summaries, comparisons, I-MR/predictive chart points, baseline diagnostics, delay patterns and warnings. [API.md](docs/API.md) explains fields and provides a complete request/response example; `/docs` and `/openapi.json` provide typed nested contracts.
 
-- [Dataset README](datasets/README.md): scenario design, generation, and reproducibility.
-- [Codebook](datasets/CODEBOOK.md): each field, units, allowed values, and derived measures.
-- [Collection protocol](docs/collection.md): field workflow, clocks, privacy, missingness, and denominator handling.
-- [Statistical methods](docs/methods.md): control limits, uncertainty, and limitations.
-- [Judge walkthrough](docs/DEMO.md): a short demonstration with expected baseline/monitoring outcomes.
-- [Deployment](docs/deployment.md): container workflow and public publication checklist.
+## Three realistic, reproducible demonstrations
 
-All sample data are synthetic and contain no patient information. Upload only appropriately governed, deidentified operational logs. Use the browser-local open-call register to start a dispatch, see active/overdue calls, and record arrival. Open calls stay separate from the statistical denominator until arrival is recorded; elapsed time refreshes while the page is open. Storage is local to the browser and selected source, with no shared dispatch database or background alerts. Supervisors still need a complete external register of canceled, missing, and excluded records to avoid misleading conclusions. This is a statistical review tool, not an emergency dispatch or clinical decision system.
+Each CSV has 1,781 synthetic completed calls across four zones and 45 days, including 845 high-priority calls. Demand varies by zone, weekday/weekend and time of day; priority mix, traffic and available units vary. Scenarios share base draws, with a five-minute South deterioration or 0.72 duration multiplier after day 20. These are controlled fictional examples, not fitted ambulance-service models.
 
-Regenerate the exact demonstration files with `python datasets/generate.py`. Installation and builds use the committed dependency files.
+- [Dataset README](datasets/README.md): files, generator, distributions and assumptions.
+- [Codebook](datasets/CODEBOOK.md): every variable, units, allowed values and collection source.
+- [Collection protocol](docs/collection.md): clock synchronization, missing arrivals, exclusions and privacy.
+- [Statistical methods](docs/methods.md): estimators, prior, assumptions, uncertainty and limitations.
+- [Demo guide](docs/DEMO.md): expected outcomes and a presentation sequence.
 
-## Public deployment
+Regenerate without touching tracked files: `python datasets/generate.py --output-dir /tmp/responsewatch-datasets`. With no output argument it refreshes the three bundled CSVs using seed 467.
 
-The app is deployed at [responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com). Version **0.2.0**, deployed from commit `608f0a8`, passed local validation and live HTTPS API/browser checks. All three demonstration analyses matched local results exactly. The public open-call lifecycle, reload persistence, duplicate-ID protection, storage recovery, and mobile layout also passed. See the [deployment and validation record](docs/deployment.md).
+## Validation and reproducibility
 
-To recreate the deployment, use the committed Render Blueprint (`render.yaml`): [create a Render service](https://render.com/deploy?repo=https://github.com/aaronk467/team-reliability) with your connected GitHub account.
+The [validation record](docs/VALIDATION.md) distinguishes current local checks from previously verified deployments. Tests include independently known probabilities, log I-MR, large counts, zero/all-late baselines, frozen reference periods, typed API parity, context denominators, dataset byte reproducibility, and protected review persistence/conflicts.
 
-For cloud setup, `./scripts/install.sh` installs frozen frontend dependencies, pinned Python dependencies, builds the dashboard, and runs statistical/API tests. It uses a writable temporary npm cache.
+Run `.venv/bin/python -m pytest -q`. The [benchmark](benchmarks/README.md) compares predictive and plug-in limits with 200 runs per main scenario and prespecified sensitivity cases. Reproduce it with `.venv/bin/python scripts/benchmark.py --output /tmp/benchmark.json`. Results include Monte Carlo uncertainty and detection delay; no universal false-alarm guarantee is claimed.
 
-## Detection benchmark
+CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates CSVs in a temporary directory, builds React/Vite, and exercises the built application in Chromium. The browser script is `python scripts/browser_smoke.py --url http://127.0.0.1:8000 --browser auto` after installing Playwright 1.62.0 and its Chromium browser. CI results must be checked separately from local execution.
 
-The [seeded 200-run benchmark](benchmarks/README.md) measures chance signals, planted-change detection, and detection delays. It compares raw/log charts and one-day/seven-day bins, reports Monte Carlo uncertainty, and explains the limits of estimated baselines and repeated chart reviews. Reproduce it with `.venv/bin/python scripts/benchmark.py`.
+## Deployment and storage limits
 
-For a short presentation, follow the [five-minute judge walkthrough](docs/DEMO.md). It includes exact expected demo outcomes and the open-call workflow.
+The committed Dockerfile and Render Blueprint serve the frontend and API together. See [deployment.md](docs/deployment.md) for reproduction and optional shared storage configuration. Current public version must be verified through `/openapi.json` after deployment; the new 0.3 release is pending deployment until recorded in VALIDATION.md.
+
+Open dispatches and added completed calls remain browser-local and source-specific. Shared mode applies to resolution reviews, not the dispatch register. No authenticated agency-wide dispatch database, correction audit trail, background emergency notification, or clinical outcome model is supplied. Review notes should use synthetic/nonpersonal aliases and information. Free Render instance files are ephemeral; a configured SQLite path alone does not prove durable storage.
+
+Completed-call denominators exclude unresolved/canceled/missing arrivals. Those exclusions can bias observed performance downward. Keep a complete external intake register and report open/excluded calls alongside these analyses. The tool supports quality investigation, not emergency dispatch control or causal/clinical decisions.

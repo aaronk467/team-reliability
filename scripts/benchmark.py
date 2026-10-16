@@ -26,9 +26,16 @@ MONITORING_DAYS = 25
 CALLS_PER_DAY = 4
 TARGET_MINUTES = 8.0
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
-MONITORING_START = (START + timedelta(days=BASELINE_DAYS)).date()
 ALPHA = math.erfc(3 / math.sqrt(2))
 SCENARIOS = {"unchanged": 1.0, "slowdown_1_5x": 1.5, "improvement_0_72x": 0.72}
+METHODS = ["beta_binomial", "exact_binomial"]
+ROBUSTNESS = {
+    "low_volume": dict(calls_per_day=1),
+    "high_volume": dict(calls_per_day=12),
+    "variable_volume": dict(calls_per_day=[1, 7, 3, 8, 2, 6, 4]),
+    "short_baseline": dict(baseline_days=5),
+    "serial_dependence": dict(rho=0.5),
+}
 
 
 def wilson(successes: int, total: int) -> list[float]:
@@ -48,16 +55,23 @@ def row(identifier: str, dispatched: datetime, minutes: float) -> dict:
                 dispatched_at=dispatched.isoformat(), arrived_at=arrived.isoformat())
 
 
-def simulated_records(seed: int, ratio: float) -> list[dict]:
-    """Independent lognormal durations; common random draws across scenarios."""
+def simulated_records(seed: int, ratio: float, baseline_days=BASELINE_DAYS,
+                      calls_per_day=CALLS_PER_DAY, rho=0.0) -> list[dict]:
+    """Stationary lognormal or stationary log-AR(1), then a fixed level shift."""
     rng = random.Random(seed)
     rows = []
-    for day in range(BASELINE_DAYS + MONITORING_DAYS):
-        for call in range(CALLS_PER_DAY):
-            minutes = rng.lognormvariate(math.log(7.3), 0.35)
-            if day >= BASELINE_DAYS:
+    previous = rng.normalvariate(0, 0.35) if rho else None
+    for day in range(baseline_days + MONITORING_DAYS):
+        n = calls_per_day[day % len(calls_per_day)] if isinstance(calls_per_day, list) else calls_per_day
+        for call in range(n):
+            if rho:
+                previous = rho * previous + math.sqrt(1 - rho**2) * rng.normalvariate(0, 0.35)
+                minutes = math.exp(math.log(7.3) + previous)
+            else:
+                minutes = rng.lognormvariate(math.log(7.3), 0.35)
+            if day >= baseline_days:
                 minutes *= ratio
-            rows.append(row(f"{day}-{call}", START + timedelta(days=day, hours=6 * call), minutes))
+            rows.append(row(f"{day}-{call}", START + timedelta(days=day, seconds=round(86400 * call/n)), minutes))
     return rows
 
 
@@ -91,7 +105,8 @@ def check_binomial_known_answers() -> list[dict]:
             monitored = [row(f"m-{i}", START + timedelta(days=20, seconds=i),
                              10 if i < late_count else 4) for i in range(n)]
             result = analyze(baseline + monitored, target_minutes=TARGET_MINUTES,
-                             baseline_days=BASELINE_DAYS, priority="high", aggregation_days=7)
+                             baseline_days=BASELINE_DAYS, priority="high", aggregation_days=7,
+                             p_method="exact_binomial")
             point = next(p for p in result["zones"][0]["p_chart"]["points"] if not p["in_baseline"])
             assert (point["lcl_count"], point["ucl_count"]) == (lower, upper)
             assert point["signal"] == (late_count < lower or late_count > upper)
@@ -104,25 +119,71 @@ def check_binomial_known_answers() -> list[dict]:
     return checks
 
 
-def chart_observations(zone: dict) -> dict[str, list[tuple[int, bool]]]:
+def check_predictive_known_answers() -> list[dict]:
+    """Check production against independent beta-function finite PMFs."""
+    from responsewatch.stats import _beta_binomial_bounds
+    checks = []
+    # Uniform predictive PMF; Jeffreys no-data boundary; then actual posteriors
+    # including all-on-time, all-late, balanced, and asymmetric baselines.
+    for n, a, b in [(1000, 1.0, 1.0), (20, .5, .5), (28, .5, 80.5),
+                    (28, 80.5, .5), (28, 40.5, 40.5), (100, 3.5, 17.5)]:
+        beta_log = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
+        masses = [math.comb(n, k) * math.exp(math.lgamma(k+a) + math.lgamma(n-k+b)
+                  - math.lgamma(n+a+b) - beta_log) for k in range(n+1)]
+        total = math.fsum(masses)
+        assert math.isclose(total, 1, rel_tol=1e-9, abs_tol=1e-9)
+        masses = [m/total for m in masses]
+        cdf, lower, upper = 0.0, None, None
+        for k, mass in enumerate(masses):
+            cdf += mass
+            if lower is None and cdf >= ALPHA/2:
+                lower = k
+            if upper is None and cdf >= 1-ALPHA/2:
+                upper = k
+        assert _beta_binomial_bounds(n, a, b) == (lower, upper)
+        assert math.fsum(masses[:lower]) <= ALPHA/2 + 1e-12
+        assert math.fsum(masses[upper+1:]) <= ALPHA/2 + 1e-12
+        if a == b == 1:
+            assert all(math.isclose(m, 1/(n+1), rel_tol=1e-8) for m in masses)
+            assert (lower, upper) == (1, 999)
+        checks.append(dict(n=n, posterior_alpha=a, posterior_beta=b, lcl_count=lower,
+                           ucl_count=upper, strict_lower_tail=math.fsum(masses[:lower]),
+                           strict_upper_tail=math.fsum(masses[upper+1:])))
+    # Public API: all-on-time/all-late data do not force a zero/certain risk;
+    # baseline points are not evaluated against their own fitted posterior.
+    for baseline_late in [0, 80]:
+        baseline = [row(f"b-{i}", START + timedelta(days=i//4, hours=i%4),
+                        10 if i < baseline_late else 4) for i in range(80)]
+        monitored = [row(f"m-{i}", START + timedelta(days=20, seconds=i), 10) for i in range(28)]
+        chart = analyze(baseline + monitored, p_method="beta_binomial")["zones"][0]["p_chart"]
+        assert 0 < chart["center"] < 1
+        assert all(not p["signal"] and not p["signal_evaluated"] for p in chart["points"] if p["in_baseline"])
+        point = next(p for p in chart["points"] if not p["in_baseline"])
+        expected = next(c for c in checks if c["n"] == 28 and c["posterior_alpha"] == baseline_late+.5)
+        assert (point["lcl_count"], point["ucl_count"]) == (expected["lcl_count"], expected["ucl_count"])
+    return checks
+
+
+def chart_observations(zone: dict, baseline_days=BASELINE_DAYS) -> dict[str, list[tuple[int, bool]]]:
+    monitoring_start = (START + timedelta(days=baseline_days)).date()
     result = {"individuals": [], "moving_range": [], "late_fraction": []}
     for point in zone["imr"]["points"]:
         if point["in_baseline"]:
             continue
         day = date.fromisoformat(point["dispatched_at"][:10])
-        elapsed = (day - MONITORING_START).days + 1
+        elapsed = (day - monitoring_start).days + 1
         result["individuals"].append((elapsed, point["signal"]))
         if point["moving_range"] is not None:
             result["moving_range"].append((elapsed, point["mr_signal"]))
     for point in zone["p_chart"]["points"]:
         if not point["in_baseline"]:
             # A batch is assessed at its END, not its first observation's date.
-            elapsed = (date.fromisoformat(point["period_end"]) - MONITORING_START).days + 1
+            elapsed = (date.fromisoformat(point["period_end"]) - monitoring_start).days + 1
             result["late_fraction"].append((elapsed, point["signal"]))
     return result
 
 
-def simulation(replicates: int) -> list[dict]:
+def simulation(replicates: int, p_method="beta_binomial") -> list[dict]:
     output = []
     for scenario, ratio in SCENARIOS.items():
         for scale in ["raw", "log"]:
@@ -132,7 +193,7 @@ def simulation(replicates: int) -> list[dict]:
                 rows = simulated_records(SEED + replicate, ratio)
                 zone = analyze(rows, target_minutes=TARGET_MINUTES,
                                baseline_days=BASELINE_DAYS, priority="high", imr_scale=scale,
-                               aggregation_days=7)["zones"][0]
+                               aggregation_days=7,p_method=p_method)["zones"][0]
                 for kind, observations in chart_observations(zone).items():
                     target = accumulators[kind]
                     flagged = [day for day, signal in observations if signal]
@@ -144,7 +205,7 @@ def simulation(replicates: int) -> list[dict]:
             for kind, observed in accumulators.items():
                 delays = observed.pop("first_signal_days")
                 event_count = observed["runs_with_signal"]
-                output.append(dict(scenario=scenario, monitoring_multiplier=ratio, imr_scale=scale,
+                output.append(dict(scenario=scenario, monitoring_multiplier=ratio, imr_scale=scale,p_method=p_method,
                                    chart=kind, replicates=replicates, **observed,
                                    run_any_signal_proportion=event_count / replicates,
                                    run_any_signal_wilson95=wilson(event_count, replicates),
@@ -154,7 +215,7 @@ def simulation(replicates: int) -> list[dict]:
     return output
 
 
-def aggregation_comparison(replicates: int, weekly_results: list[dict]) -> list[dict]:
+def aggregation_comparison(replicates: int, weekly_results: list[dict],p_method="beta_binomial") -> list[dict]:
     """Show the information cost of four-call daily bins versus weekly bins."""
     output = []
     for scenario, ratio in SCENARIOS.items():
@@ -162,7 +223,7 @@ def aggregation_comparison(replicates: int, weekly_results: list[dict]) -> list[
         for replicate in range(replicates):
             zone = analyze(simulated_records(SEED + replicate, ratio), target_minutes=TARGET_MINUTES,
                            baseline_days=BASELINE_DAYS, priority="high", imr_scale="log",
-                           aggregation_days=1)["zones"][0]
+                           aggregation_days=1,p_method=p_method)["zones"][0]
             points = chart_observations(zone)["late_fraction"]
             flags = [day for day, signal in points if signal]
             observation_count += len(points)
@@ -170,14 +231,14 @@ def aggregation_comparison(replicates: int, weekly_results: list[dict]) -> list[
             if flags:
                 detections += 1
                 delays.append(min(flags))
-        output.append(dict(scenario=scenario, aggregation_days=1, replicates=replicates,
+        output.append(dict(scenario=scenario,p_method=p_method, aggregation_days=1, replicates=replicates,
                            runs_with_signal=detections, flagged=flagged_count, observed=observation_count,
                            run_any_signal_proportion=detections / replicates,
                            run_any_signal_wilson95=wilson(detections, replicates),
                            flagged_observation_fraction=flagged_count / observation_count,
                            conditional_first_signal_day_median=median(delays) if delays else None))
         weekly = next(r for r in weekly_results if r["scenario"] == scenario and
-                      r["chart"] == "late_fraction" and r["imr_scale"] == "log")
+                      r["chart"] == "late_fraction" and r["imr_scale"] == "log" and r["p_method"]==p_method)
         output.append({key: value for key, value in weekly.items()
                        if key not in ["chart", "imr_scale", "monitoring_multiplier"]} | {"aggregation_days": 7})
     return output
@@ -204,6 +265,28 @@ def demo_results() -> list[dict]:
     return results
 
 
+def robustness(replicates):
+    output=[]
+    for case,options in ROBUSTNESS.items():
+        baseline_days=options.get('baseline_days',BASELINE_DAYS)
+        for scenario in ('unchanged','slowdown_1_5x'):
+            for method in METHODS:
+                detections=flagged=observed=0;delays=[]
+                for i in range(replicates):
+                    records=simulated_records(SEED+100000+i,SCENARIOS[scenario],**options)
+                    zone=analyze(records,baseline_days=baseline_days,priority='high',p_method=method)['zones'][0]
+                    points=chart_observations(zone,baseline_days)['late_fraction']
+                    flags=[day for day,signal in points if signal]
+                    observed+=len(points);flagged+=len(flags)
+                    if flags:detections+=1;delays.append(min(flags))
+                output.append(dict(case=case,scenario=scenario,p_method=method,replicates=replicates,options=options,
+                    runs_with_signal=detections,observed=observed,flagged=flagged,
+                    run_any_signal_proportion=detections/replicates,
+                    run_any_signal_wilson95=wilson(detections,replicates),
+                    conditional_first_signal_day_median=median(delays) if delays else None))
+    return output
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--replicates", type=int, default=200)
@@ -212,20 +295,22 @@ def main() -> None:
     if args.replicates < 1:
         parser.error("--replicates must be at least 1")
     known_answers = check_binomial_known_answers()
-    simulation_results = simulation(args.replicates)
+    simulation_results = [row for method in METHODS for row in simulation(args.replicates,method)]
     output = dict(
         design=dict(seed=SEED, replicates=args.replicates, baseline_days=BASELINE_DAYS,
                     monitoring_days=MONITORING_DAYS, calls_per_day=CALLS_PER_DAY,
                     zones_per_run=1, priority="high", target_minutes=TARGET_MINUTES,
                     baseline_duration_distribution="lognormal(log(7.3), 0.35)",
-                    monitoring_multipliers=SCENARIOS, p_chart_aggregation_days=7,
+                    monitoring_multipliers=SCENARIOS,methods=METHODS,prior_alpha=.5,prior_beta=.5,robustness=ROBUSTNESS,robustness_replicates=min(100,args.replicates), p_chart_aggregation_days=7,
                     signal_tail_budget_known_parameter_only=ALPHA,
                     delay_definition="1-based monitoring day; p-chart signal at batch end; final partial batch included",
                     duration_resolution_seconds=1,
                     source_stats_sha256=hashlib.sha256((ROOT / "backend" / "responsewatch" / "stats.py").read_bytes()).hexdigest()),
         independent_binomial_checks=known_answers,
+        independent_predictive_checks=check_predictive_known_answers(),
+        robustness=robustness(min(100,args.replicates)),
         simulation=simulation_results,
-        p_chart_aggregation_comparison=aggregation_comparison(args.replicates, simulation_results),
+        p_chart_aggregation_comparison=[row for method in METHODS for row in aggregation_comparison(args.replicates, simulation_results,method)],
         planted_demonstrations=demo_results(),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -233,7 +318,7 @@ def main() -> None:
     print(f"Saved {len(output['simulation'])} simulation summaries and {len(output['planted_demonstrations'])} demo-zone summaries to {args.output}")
     print("scenario             scale chart          runs with signals   flagged/observed   median first day (detected runs)")
     for result in output["simulation"]:
-        print(f"{result['scenario']:<20} {result['imr_scale']:<5} {result['chart']:<14} "
+        print(f"{result['p_method']:<15} {result['scenario']:<20} {result['imr_scale']:<5} {result['chart']:<14} "
               f"{result['runs_with_signal']:>3}/{args.replicates:<4} "
               f"{result['flagged']:>5}/{result['observed']:<7} "
               f"{result['conditional_first_signal_day_median']}")

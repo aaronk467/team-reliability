@@ -1,0 +1,265 @@
+{
+  "summary": {
+    "count": 1,
+    "late_count": 1,
+    "late_rate": 1.0,
+    "late_ci_low": 0.20654931437723745,
+    "late_ci_high": 1,
+    "p90_minutes": 9.0
+  },
+  "comparison": {
+    "baseline": {
+      "count": 1,
+      "late_count": 1,
+      "late_rate": 1.0,
+      "late_ci_low": 0.20654931437723745,
+      "late_ci_high": 1,
+      "p90_minutes": 9.0
+    },
+    "monitoring": null,
+    "late_rate_delta_pp": null,
+    "p90_delta_minutes": null
+  },
+  "delay_patterns": {
+    "count": 1,
+    "late_count": 1,
+    "reason_recorded_count": 0,
+    "reason_coverage": 0.0,
+    "late_reason_recorded_count": 0,
+    "late_reason_coverage": 0.0,
+    "reasons": [
+      {
+        "reason": "Not recorded",
+        "count": 1,
+        "late_count": 1,
+        "late_share": 1.0,
+        "cumulative_late_share": 1.0
+      }
+    ],
+    "strata": [
+      {
+        "field": "shift",
+        "label": "Shift",
+        "missing_count": 1,
+        "groups": [
+          {
+            "value": "Not recorded",
+            "count": 1,
+            "late_count": 1,
+            "late_rate": 1.0,
+            "late_ci_low": 0.20654931437723745,
+            "late_ci_high": 1,
+            "p90_minutes": 9.0
+          }
+        ]
+      },
+      {
+        "field": "traffic",
+        "label": "Traffic",
+        "missing_count": 1,
+        "groups": [
+          {
+            "value": "Not recorded",
+            "count": 1,
+            "late_count": 1,
+            "late_rate": 1.0,
+            "late_ci_low": 0.20654931437723745,
+            "late_ci_high": 1,
+            "p90_minutes": 9.0
+          }
+        ]
+      },
+      {
+        "field": "units_available",
+        "label": "Units available at dispatch",
+        "missing_count": 1,
+        "groups": [
+          {
+            "value": "Not recorded",
+            "count": 1,
+            "late_count": 1,
+            "late_rate": 1.0,
+            "late_ci_low": 0.20654931437723745,
+            "late_ci_high": 1,
+            "p90_minutes": 9.0
+          }
+        ]
+      }
+    ],
+    "warning": "Recorded reasons and context comparisons are descriptive associations, not causal attribution. Missing reasons stay in denominators. Context groups pool baseline and monitoring calls and are not adjusted for priority, zone, workload, or selection bias beyond the current filters."
+  },
+  "zones": [
+    {
+      "zone": "North",
+      "count": 1,
+      "late_count": 1,
+      "late_rate": 1.0,
+      "late_ci_low": 0.20654931437723745,
+      "late_ci_high": 1,
+      "p90_minutes": 9.0,
+      "baseline_count": 1,
+      "warnings": [
+        "Fewer than 20 baseline calls: limits are preliminary.",
+        "At least two baseline calls are needed for I-MR limits.",
+        "Baseline late proportion is 0 or 1: posterior predictive limits retain uncertainty; zero observed events does not establish zero or certain population risk."
+      ],
+      "comparison": {
+        "baseline": {
+          "count": 1,
+          "late_count": 1,
+          "late_rate": 1.0,
+          "late_ci_low": 0.20654931437723745,
+          "late_ci_high": 1,
+          "p90_minutes": 9.0
+        },
+        "monitoring": null,
+        "late_rate_delta_pp": null,
+        "p90_delta_minutes": null
+      },
+      "baseline_quality": {
+        "baseline_count": 1,
+        "i_signals": 0,
+        "mr_signals": 0,
+        "p_signals": null,
+        "imr_limits_available": false,
+        "review_recommended": true,
+        "reasons": [
+          "Fewer than 20 baseline calls.",
+          "I-MR baseline limits unavailable."
+        ]
+      },
+      "delay_patterns": {
+        "count": 1,
+        "late_count": 1,
+        "reason_recorded_count": 0,
+        "reason_coverage": 0.0,
+        "late_reason_recorded_count": 0,
+        "late_reason_coverage": 0.0,
+        "reasons": [
+          {
+            "reason": "Not recorded",
+            "count": 1,
+            "late_count": 1,
+            "late_share": 1.0,
+            "cumulative_late_share": 1.0
+          }
+        ],
+        "strata": [
+          {
+            "field": "shift",
+            "label": "Shift",
+            "missing_count": 1,
+            "groups": [
+              {
+                "value": "Not recorded",
+                "count": 1,
+                "late_count": 1,
+                "late_rate": 1.0,
+                "late_ci_low": 0.20654931437723745,
+                "late_ci_high": 1,
+                "p90_minutes": 9.0
+              }
+            ]
+          },
+          {
+            "field": "traffic",
+            "label": "Traffic",
+            "missing_count": 1,
+            "groups": [
+              {
+                "value": "Not recorded",
+                "count": 1,
+                "late_count": 1,
+                "late_rate": 1.0,
+                "late_ci_low": 0.20654931437723745,
+                "late_ci_high": 1,
+                "p90_minutes": 9.0
+              }
+            ]
+          },
+          {
+            "field": "units_available",
+            "label": "Units available at dispatch",
+            "missing_count": 1,
+            "groups": [
+              {
+                "value": "Not recorded",
+                "count": 1,
+                "late_count": 1,
+                "late_rate": 1.0,
+                "late_ci_low": 0.20654931437723745,
+                "late_ci_high": 1,
+                "p90_minutes": 9.0
+              }
+            ]
+          }
+        ],
+        "warning": "Recorded reasons and context comparisons are descriptive associations, not causal attribution. Missing reasons stay in denominators. Context groups pool baseline and monitoring calls and are not adjusted for priority, zone, workload, or selection bias beyond the current filters."
+      },
+      "imr": {
+        "center": 9.000000000000002,
+        "lcl": null,
+        "ucl": null,
+        "mr_center": null,
+        "mr_ucl": null,
+        "scale": "log",
+        "mr_units": "log ratio",
+        "points": [
+          {
+            "id": "example-1",
+            "dispatched_at": "2026-01-01T12:00:00+00:00",
+            "minutes": 9.0,
+            "in_baseline": true,
+            "signal": false,
+            "moving_range": null,
+            "mr_signal": false
+          }
+        ]
+      },
+      "p_chart": {
+        "center": 0.75,
+        "baseline_late_rate": 1.0,
+        "method": "beta_binomial",
+        "alpha": 0.0026997960632601913,
+        "prior_alpha": 0.5,
+        "prior_beta": 0.5,
+        "posterior_alpha": 1.5,
+        "posterior_beta": 0.5,
+        "posterior_mean": 0.75,
+        "baseline_signal_policy": "not_evaluated_fitted_reference",
+        "aggregation_days": 7,
+        "points": [
+          {
+            "date": "2026-01-01",
+            "period_start": "2026-01-01",
+            "period_end": "2026-01-01",
+            "n": 1,
+            "late_count": 1,
+            "proportion": 1.0,
+            "lcl": 0.0,
+            "ucl": 1.0,
+            "lcl_count": 0,
+            "ucl_count": 1,
+            "in_baseline": true,
+            "signal_evaluated": false,
+            "signal": false
+          }
+        ]
+      }
+    }
+  ],
+  "target_minutes": 8.0,
+  "baseline_days": 20,
+  "baseline_start": "2026-01-01",
+  "baseline_end": "2026-01-20",
+  "priority": "high",
+  "imr_scale": "log",
+  "aggregation_days": 7,
+  "p_method": "beta_binomial",
+  "warnings": [
+    "Observational signals prompt investigation, not causal attribution. Completed calls only; missing arrivals require separate follow-up.",
+    "Priority-stratified analysis still requires review of case mix and dispatch practice.",
+    "Beta-binomial predictive limits integrate baseline-risk uncertainty under a fixed Jeffreys prior and independent common-risk Bernoulli calls. Coverage is conditional on this model, not a guaranteed fixed-risk frequentist false-alarm rate. Baseline points fit the posterior and are not predictive tests.",
+    "Log I-MR reduces skew under multiplicative variation but does not guarantee lognormality, independent calls, or calibrated false-alarm rates. Multiple repeated charts increase chance signals."
+  ]
+}

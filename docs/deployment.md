@@ -4,7 +4,7 @@
 
 - Dashboard: [https://responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com)
 - Interactive API documentation: [https://responsewatch-lpj2.onrender.com/docs](https://responsewatch-lpj2.onrender.com/docs)
-- Verified live version **0.2.0**, deployed from commit `608f0a8`.
+- Previously verified live version **0.2.0**, deployed from commit `608f0a8`. Version 0.3 changes require deployment and fresh public checks.
 - Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All three demo analyses matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: default high/log/seven-day settings, three charts, all demo outcomes, daily/weekly controls, open-call start/overdue/arrival transitions, reload persistence, denominator integrity, duplicate-ID protection, corrupt-storage recovery, CSV export/error handling, and mobile layout. No browser page errors occurred.
 
 When verifying a new deployment, load the dashboard and API documentation, select each of the three demonstration datasets, run an analysis, and exercise CSV import. Free Render instances may need time to wake.
@@ -39,3 +39,14 @@ The Dockerfile supports an optional BuildKit secret named `cloud_ca` containing 
 For a reproducible presentation with expected statistics, follow the [judge walkthrough](DEMO.md). Changes described there require deploying the current source; the earlier public-validation record identifies the version previously checked.
 
 The version 0.2 deployment was started manually with **Manual Deploy → Deploy latest commit**. If a future source update does not appear automatically, use that action and verify `/openapi.json` reports the expected version before running release checks. Documentation-only updates do not require redeploying the service.
+
+## Shared resolution review storage
+
+The public demo defaults to browser-local review records. Optional shared mode applies to review ownership/actions, not open dispatches or completed-call storage. The server enables it only when both settings are present:
+
+- `RESPONSEWATCH_DB_PATH`: an absolute SQLite file path on operator-provided persistent storage, such as `/var/data/responsewatch-reviews.sqlite3`.
+- `RESPONSEWATCH_REVIEW_TOKEN`: an operator-created secret with at least 32 characters, entered securely in hosting environment settings. Never put it in GitHub, chat, browser localStorage, URLs, or screenshots. Authorized reviewers enter it in the UI password field; it stays in memory.
+
+On Render, persistent disks require a service plan that supports them. Do not assume a free instance filesystem survives redeployment. This project does not purchase or provision a paid disk. Set the database path only after storage is mounted, then verify restart retention. A configured path is not proof of persistence. The SQLite implementation targets one server instance with multiple clients; a distributed multi-instance deployment needs a suitable database architecture.
+
+All shared reads and writes require the token. Stale updates return 409 rather than overwrite another review. Save exports/backups and test restores under your agency's governance. Local review mode remains usable without secrets, accounts, or a database, and has explicit JSON export controls.

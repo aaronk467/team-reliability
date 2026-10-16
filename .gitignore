@@ -222,3 +222,7 @@ __marimo__/
 # Frontend dependencies and generated production bundle
 node_modules/
 frontend/dist/
+
+# Local operational review databases
+*.sqlite3
+*.sqlite3-*

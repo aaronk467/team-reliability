@@ -1,3 +1,4 @@
+import ResolutionReviews from "./ResolutionReviews";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import "./style.css";
 import OpenCalls from "./OpenCalls";
+import DelayPatterns from "./DelayPatterns";
 const columns = [
   "id",
   "zone",
@@ -60,6 +62,10 @@ function parseCSV(text) {
     throw Error(
       "CSV needs id, zone, priority, dispatched_at and arrived_at columns.",
     );
+  if (header.some((h) => !h) || new Set(header).size !== header.length)
+    throw Error(
+      "CSV headers must be nonempty and unique; no columns were imported.",
+    );
   return rows.map((r, i) => {
     if (r.length !== header.length)
       throw Error(`CSV row ${i + 2} has an unexpected number of fields.`);
@@ -78,6 +84,7 @@ function Chart({
   percent = false,
   exact = false,
   centerLabel = "Baseline center",
+  limitLabel,
 }) {
   const W = 850,
     H = 210,
@@ -108,13 +115,13 @@ function Chart({
           <p>{subtitle}</p>
         </div>
         <span className="small-badge">
-          {exact ? "Exact binomial limits" : "3σ limits"}
+          {limitLabel || (exact ? "Exact binomial limits" : "3σ limits")}
         </span>
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`${title}, baseline center and ${exact ? "exact binomial" : "three sigma"} control limits`}
+        aria-label={`${title}, baseline center and ${limitLabel || (exact ? "exact binomial" : "three sigma")} control limits`}
       >
         <rect
           x={pad.l}
@@ -240,6 +247,7 @@ function App() {
     [priority, setPriority] = useState("high"),
     [scale, setScale] = useState("log"),
     [aggregation, setAggregation] = useState(7),
+    [pMethod, setPMethod] = useState("beta_binomial"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [modal, setModal] = useState(false),
@@ -361,6 +369,7 @@ function App() {
         priority,
         imr_scale: scale,
         aggregation_days: Number(aggregation),
+        p_method: pMethod,
       }),
     })
       .then((data) => {
@@ -382,7 +391,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [records, target, baseline, priority, scale, aggregation]);
+  }, [records, target, baseline, priority, scale, aggregation, pMethod]);
   const selected = result?.zones.find((z) => z.zone === zone);
   const alerts =
     selected?.imr.points.filter(
@@ -390,10 +399,20 @@ function App() {
     ) || [];
   const summary = result?.summary;
   function exportCSV() {
+    const headers = [
+      ...columns,
+      ...new Set(
+        records
+          .flatMap((r) => Object.keys(r))
+          .filter((k) => !columns.includes(k) && !k.startsWith("_")),
+      ),
+    ];
+    const quote = (value) =>
+      '"' + String(value ?? "").replaceAll('"', '""') + '"';
     const text = [
-      columns.join(","),
+      headers.map(quote).join(","),
       ...records.map((r) =>
-        columns
+        headers
           .map((c) => '"' + String(r[c] ?? "").replaceAll('"', '""') + '"')
           .join(","),
       ),
@@ -445,6 +464,7 @@ function App() {
         priority,
         imr_scale: scale,
         aggregation_days: Number(aggregation),
+        p_method: pMethod,
       }),
     });
     assertUnchanged(snapshot);
@@ -494,6 +514,7 @@ function App() {
           priority,
           imr_scale: scale,
           aggregation_days: Number(aggregation),
+          p_method: pMethod,
         }),
       });
       assertUnchanged(snapshot);
@@ -678,6 +699,21 @@ function App() {
                 <option value={1}>1 UTC day</option>
               </select>
             </div>
+            <div className="control">
+              <label htmlFor="p-method">Proportion limits</label>
+              <select
+                id="p-method"
+                value={pMethod}
+                onChange={(e) => setPMethod(e.target.value)}
+              >
+                <option value="beta_binomial">
+                  Predictive (baseline uncertainty)
+                </option>
+                <option value="exact_binomial">
+                  Binomial (fixed risk estimate)
+                </option>
+              </select>
+            </div>
             <div className="control-actions">
               <label className="icon-button upload" title="Upload CSV">
                 <Upload size={17} />
@@ -841,6 +877,36 @@ function App() {
                       data={selected.comparison}
                     />
                   )}
+                  {selected.baseline_quality && (
+                    <section className="panel baseline-quality">
+                      <h3>
+                        Baseline quality ·{" "}
+                        {selected.baseline_quality.review_recommended
+                          ? "review recommended"
+                          : "initial checks passed"}
+                      </h3>
+                      <p>
+                        {selected.baseline_quality.baseline_count} baseline
+                        calls · {selected.baseline_quality.i_signals} individual
+                        signals · {selected.baseline_quality.mr_signals}{" "}
+                        moving-range signals · I-MR limits{" "}
+                        {selected.baseline_quality.imr_limits_available
+                          ? "available"
+                          : "unavailable"}
+                        .{" "}
+                        {selected.baseline_quality.p_signals == null
+                          ? "Predictive baseline proportion signals are not evaluated."
+                          : `${selected.baseline_quality.p_signals} baseline proportion diagnostics.`}
+                      </p>
+                      {selected.baseline_quality.reasons.map((reason) => (
+                        <p key={reason}>{reason}</p>
+                      ))}
+                      <small>
+                        These checks cannot prove stability, independence,
+                        representative sampling, or constant case mix.
+                      </small>
+                    </section>
+                  )}
                   {selected.warnings.map((w) => (
                     <div className="warning" key={w}>
                       <AlertTriangle size={15} />
@@ -884,7 +950,17 @@ function App() {
                     />
                     <Chart
                       title="Above-target proportion"
-                      subtitle={`Exact binomial chart · ${aggregation}-day UTC buckets · limits adapt to n`}
+                      subtitle={`${selected.p_chart.method === "beta_binomial" ? "Beta-binomial predictive" : "Binomial plug-in"} · ${aggregation}-day UTC buckets · limits adapt to n`}
+                      limitLabel={
+                        selected.p_chart.method === "beta_binomial"
+                          ? "Predictive count limits"
+                          : "Exact binomial count limits"
+                      }
+                      centerLabel={
+                        selected.p_chart.method === "beta_binomial"
+                          ? "Posterior predictive mean"
+                          : "Observed baseline rate"
+                      }
                       exact
                       points={selected.p_chart.points}
                       value="proportion"
@@ -893,6 +969,44 @@ function App() {
                       upper="ucl"
                       percent
                     />
+                  </div>
+                  <div className="panel model-explanation">
+                    <h3>
+                      {selected.p_chart.method === "beta_binomial"
+                        ? "Baseline uncertainty is included"
+                        : "Fixed-risk binomial reference"}
+                    </h3>
+                    <p>
+                      Observed baseline above-target rate:{" "}
+                      <strong>
+                        {pct(selected.p_chart.baseline_late_rate)}
+                      </strong>
+                      . Chart center:{" "}
+                      <strong>{pct(selected.p_chart.center)}</strong> (
+                      {selected.p_chart.method === "beta_binomial"
+                        ? "posterior predictive mean"
+                        : "observed baseline estimate"}
+                      ).
+                    </p>
+                    {selected.p_chart.method === "beta_binomial" ? (
+                      <p>
+                        Jeffreys prior Beta({selected.p_chart.prior_alpha},{" "}
+                        {selected.p_chart.prior_beta}) updates to Beta(
+                        {fmt(selected.p_chart.posterior_alpha, 1)},{" "}
+                        {fmt(selected.p_chart.posterior_beta, 1)}). Predictive
+                        limits include uncertainty in the baseline risk
+                        estimate. Baseline periods fitted this reference and are
+                        not evaluated for predictive signals. Coverage is
+                        conditional on the model; this is not a guaranteed
+                        frequentist false-alarm rate.
+                      </p>
+                    ) : (
+                      <p>
+                        Binomial limits treat the observed baseline rate as
+                        fixed. They omit uncertainty from estimating that rate,
+                        and zero/all-late baselines have degenerate limits.
+                      </p>
+                    )}
                   </div>
                   <p className="period-note">
                     Buckets are anchored separately at baseline and monitoring
@@ -905,7 +1019,7 @@ function App() {
                       <div>
                         <h3>Period proportion signals</h3>
                         <p>
-                          Monitoring periods outside exact binomial limits;
+                          Monitoring periods outside chosen count limits;
                           inspect period denominators and call mix.
                         </p>
                       </div>
@@ -1032,7 +1146,19 @@ function App() {
                       validate it before changing the baseline.
                     </div>
                   </section>
+                  <DelayPatterns
+                    overall={result.delay_patterns}
+                    selected={selected.delay_patterns}
+                    zone={selected.zone}
+                  />
                 </>
+              )}
+              {selected && (
+                <ResolutionReviews
+                  key={`${source}:${selected.zone}`}
+                  source={source}
+                  zone={selected.zone}
+                />
               )}
               <div className="footnote">
                 <ShieldCheck size={16} />
@@ -1121,20 +1247,28 @@ function App() {
                 Points strictly outside limits are flagged; no other run rules
                 apply.
               </p>
-              <h3>Exact binomial proportion chart</h3>
+              <h3>Proportion charts with baseline uncertainty</h3>
               <p>
                 A response is above target only when its duration is strictly
-                greater than the threshold. The pooled baseline above-target
-                proportion estimates risk. For each 1- or 7-day UTC period,
-                lower and upper integer count quantiles come from Binomial(n,
-                baseline risk) with equal tails totaling 0.002699796 (the
-                nominal three-sigma tail probability). A count strictly outside
-                those bounds signals. Limits shown as proportions are discrete
-                and can be conservative. Baseline and monitoring periods are
-                binned separately; empty periods are omitted. Zero/one baseline
-                risk remains degenerate and uncertain. This is a plug-in chart:
-                baseline-risk estimation uncertainty is not included in its
-                limits.
+                greater than the threshold. Default beta-binomial predictive
+                limits combine a Jeffreys Beta(0.5, 0.5) prior with baseline
+                late/on-time counts. The posterior predictive mean is the
+                center; observed baseline rate is reported separately.
+                Predictive count quantiles use equal tails totaling 0.002699796.
+                Counts strictly outside discrete bounds signal. These limits
+                account for uncertainty in baseline risk but depend on a
+                constant-risk independent-binomial model; they do not guarantee
+                a frequentist false-alarm rate. Baseline periods are fitted
+                references, not evaluated predictive tests.
+              </p>
+              <p>
+                The optional exact-binomial plug-in chart treats observed
+                baseline risk as known, omits estimation uncertainty, and
+                degenerates for zero/all-late baselines. Both methods use each
+                bucket's actual count; 1- or 7-day UTC bins are anchored
+                separately in baseline and monitoring, empty bins omitted, final
+                partial bins provisional. Small samples and case-mix changes
+                still require judgment.
               </p>
               <h3>Before and after</h3>
               <p>
@@ -1155,6 +1289,17 @@ function App() {
                 a consistent process. Limits describe observed variation; they
                 are separate from service targets. Signals do not identify
                 causes or demonstrate patient outcomes.
+              </p>
+              <h3>Logged context and missingness</h3>
+              <p>
+                Optional shift, traffic and units_available columns support
+                unadjusted condition comparisons and are preserved in CSV
+                export. Units available must be a nonnegative integer when
+                supplied. Blank context remains “Not recorded”; it is never
+                interpreted as no delay. Reason coverage is shown for all calls
+                and above-target calls separately. The Pareto view includes
+                missing reasons in its denominator so incomplete logging remains
+                visible.
               </p>
               <h3>Field collection</h3>
               <p>

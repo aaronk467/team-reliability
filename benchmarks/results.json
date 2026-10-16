@@ -14,11 +14,43 @@
       "slowdown_1_5x": 1.5,
       "improvement_0_72x": 0.72
     },
+    "methods": [
+      "beta_binomial",
+      "exact_binomial"
+    ],
+    "prior_alpha": 0.5,
+    "prior_beta": 0.5,
+    "robustness": {
+      "low_volume": {
+        "calls_per_day": 1
+      },
+      "high_volume": {
+        "calls_per_day": 12
+      },
+      "variable_volume": {
+        "calls_per_day": [
+          1,
+          7,
+          3,
+          8,
+          2,
+          6,
+          4
+        ]
+      },
+      "short_baseline": {
+        "baseline_days": 5
+      },
+      "serial_dependence": {
+        "rho": 0.5
+      }
+    },
+    "robustness_replicates": 100,
     "p_chart_aggregation_days": 7,
     "signal_tail_budget_known_parameter_only": 0.0026997960632601913,
     "delay_definition": "1-based monitoring day; p-chart signal at batch end; final partial batch included",
     "duration_resolution_seconds": 1,
-    "source_stats_sha256": "d4b90aa2ad95ae8c1053c16803d82769bc3029b73a3890fcae0c522647bea241"
+    "source_stats_sha256": "a12f6097c167defbf167db3a3fdb146be1e4c8062f4a3344a41b1f0137739c6c"
   },
   "independent_binomial_checks": [
     {
@@ -89,11 +121,462 @@
       ]
     }
   ],
+  "independent_predictive_checks": [
+    {
+      "n": 1000,
+      "posterior_alpha": 1.0,
+      "posterior_beta": 1.0,
+      "lcl_count": 1,
+      "ucl_count": 999,
+      "strict_lower_tail": 0.0009990009990006698,
+      "strict_upper_tail": 0.0009990009990006698
+    },
+    {
+      "n": 20,
+      "posterior_alpha": 0.5,
+      "posterior_beta": 0.5,
+      "lcl_count": 0,
+      "ucl_count": 20,
+      "strict_lower_tail": 0.0,
+      "strict_upper_tail": 0.0
+    },
+    {
+      "n": 28,
+      "posterior_alpha": 0.5,
+      "posterior_beta": 80.5,
+      "lcl_count": 0,
+      "ucl_count": 3,
+      "strict_lower_tail": 0.0,
+      "strict_upper_tail": 0.0011570558398034622
+    },
+    {
+      "n": 28,
+      "posterior_alpha": 80.5,
+      "posterior_beta": 0.5,
+      "lcl_count": 25,
+      "ucl_count": 28,
+      "strict_lower_tail": 0.0011570558398034622,
+      "strict_upper_tail": 0.0
+    },
+    {
+      "n": 28,
+      "posterior_alpha": 40.5,
+      "posterior_beta": 40.5,
+      "lcl_count": 5,
+      "ucl_count": 23,
+      "strict_lower_tail": 0.0005435867510097775,
+      "strict_upper_tail": 0.0005435867510097775
+    },
+    {
+      "n": 100,
+      "posterior_alpha": 3.5,
+      "posterior_beta": 17.5,
+      "lcl_count": 0,
+      "ucl_count": 50,
+      "strict_lower_tail": 0.0,
+      "strict_upper_tail": 0.001144104144019096
+    }
+  ],
+  "robustness": [
+    {
+      "case": "low_volume",
+      "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 1
+      },
+      "runs_with_signal": 0,
+      "observed": 400,
+      "flagged": 0,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        3.469446951953614e-18,
+        0.03699349820698568
+      ],
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "case": "low_volume",
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 1
+      },
+      "runs_with_signal": 2,
+      "observed": 400,
+      "flagged": 2,
+      "run_any_signal_proportion": 0.02,
+      "run_any_signal_wilson95": [
+        0.00550196755016235,
+        0.07001179072854388
+      ],
+      "conditional_first_signal_day_median": 17.5
+    },
+    {
+      "case": "low_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 1
+      },
+      "runs_with_signal": 14,
+      "observed": 400,
+      "flagged": 20,
+      "run_any_signal_proportion": 0.14,
+      "run_any_signal_wilson95": [
+        0.08526343659939134,
+        0.22137188210963837
+      ],
+      "conditional_first_signal_day_median": 10.5
+    },
+    {
+      "case": "low_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 1
+      },
+      "runs_with_signal": 30,
+      "observed": 400,
+      "flagged": 49,
+      "run_any_signal_proportion": 0.3,
+      "run_any_signal_wilson95": [
+        0.2189488529493276,
+        0.3958485463334666
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "high_volume",
+      "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 12
+      },
+      "runs_with_signal": 0,
+      "observed": 400,
+      "flagged": 0,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        3.469446951953614e-18,
+        0.03699349820698568
+      ],
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "case": "high_volume",
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 12
+      },
+      "runs_with_signal": 5,
+      "observed": 400,
+      "flagged": 5,
+      "run_any_signal_proportion": 0.05,
+      "run_any_signal_wilson95": [
+        0.02154367915436796,
+        0.11175046923191913
+      ],
+      "conditional_first_signal_day_median": 7
+    },
+    {
+      "case": "high_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 12
+      },
+      "runs_with_signal": 100,
+      "observed": 400,
+      "flagged": 399,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9630065017930143,
+        1.0
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "high_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": 12
+      },
+      "runs_with_signal": 100,
+      "observed": 400,
+      "flagged": 399,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9630065017930143,
+        1.0
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "variable_volume",
+      "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": [
+          1,
+          7,
+          3,
+          8,
+          2,
+          6,
+          4
+        ]
+      },
+      "runs_with_signal": 0,
+      "observed": 400,
+      "flagged": 0,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        3.469446951953614e-18,
+        0.03699349820698568
+      ],
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "case": "variable_volume",
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": [
+          1,
+          7,
+          3,
+          8,
+          2,
+          6,
+          4
+        ]
+      },
+      "runs_with_signal": 0,
+      "observed": 400,
+      "flagged": 0,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        3.469446951953614e-18,
+        0.03699349820698568
+      ],
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "case": "variable_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": [
+          1,
+          7,
+          3,
+          8,
+          2,
+          6,
+          4
+        ]
+      },
+      "runs_with_signal": 100,
+      "observed": 400,
+      "flagged": 309,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9630065017930143,
+        1.0
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "variable_volume",
+      "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "calls_per_day": [
+          1,
+          7,
+          3,
+          8,
+          2,
+          6,
+          4
+        ]
+      },
+      "runs_with_signal": 100,
+      "observed": 400,
+      "flagged": 332,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9630065017930143,
+        1.0
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "short_baseline",
+      "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "baseline_days": 5
+      },
+      "runs_with_signal": 1,
+      "observed": 400,
+      "flagged": 1,
+      "run_any_signal_proportion": 0.01,
+      "run_any_signal_wilson95": [
+        0.0017674320641406505,
+        0.054486196178705315
+      ],
+      "conditional_first_signal_day_median": 14
+    },
+    {
+      "case": "short_baseline",
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "baseline_days": 5
+      },
+      "runs_with_signal": 9,
+      "observed": 400,
+      "flagged": 12,
+      "run_any_signal_proportion": 0.09,
+      "run_any_signal_wilson95": [
+        0.04807254000256516,
+        0.1622621285271631
+      ],
+      "conditional_first_signal_day_median": 7
+    },
+    {
+      "case": "short_baseline",
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "baseline_days": 5
+      },
+      "runs_with_signal": 70,
+      "observed": 400,
+      "flagged": 149,
+      "run_any_signal_proportion": 0.7,
+      "run_any_signal_wilson95": [
+        0.6041514536665332,
+        0.7810511470506724
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "short_baseline",
+      "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "baseline_days": 5
+      },
+      "runs_with_signal": 95,
+      "observed": 400,
+      "flagged": 294,
+      "run_any_signal_proportion": 0.95,
+      "run_any_signal_wilson95": [
+        0.8882495307680808,
+        0.9784563208456319
+      ],
+      "conditional_first_signal_day_median": 7
+    },
+    {
+      "case": "serial_dependence",
+      "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "rho": 0.5
+      },
+      "runs_with_signal": 13,
+      "observed": 400,
+      "flagged": 13,
+      "run_any_signal_proportion": 0.13,
+      "run_any_signal_wilson95": [
+        0.07757167427240512,
+        0.20980351440076428
+      ],
+      "conditional_first_signal_day_median": 14
+    },
+    {
+      "case": "serial_dependence",
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "rho": 0.5
+      },
+      "runs_with_signal": 21,
+      "observed": 400,
+      "flagged": 23,
+      "run_any_signal_proportion": 0.21,
+      "run_any_signal_wilson95": [
+        0.141656540619153,
+        0.29979968834089865
+      ],
+      "conditional_first_signal_day_median": 14
+    },
+    {
+      "case": "serial_dependence",
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 100,
+      "options": {
+        "rho": 0.5
+      },
+      "runs_with_signal": 96,
+      "observed": 400,
+      "flagged": 267,
+      "run_any_signal_proportion": 0.96,
+      "run_any_signal_wilson95": [
+        0.9016292856411208,
+        0.9843366960084523
+      ],
+      "conditional_first_signal_day_median": 7.0
+    },
+    {
+      "case": "serial_dependence",
+      "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
+      "replicates": 100,
+      "options": {
+        "rho": 0.5
+      },
+      "runs_with_signal": 98,
+      "observed": 400,
+      "flagged": 304,
+      "run_any_signal_proportion": 0.98,
+      "run_any_signal_wilson95": [
+        0.929988209271456,
+        0.9944980324498376
+      ],
+      "conditional_first_signal_day_median": 7.0
+    }
+  ],
   "simulation": [
     {
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 143,
@@ -112,6 +595,7 @@
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 156,
@@ -130,24 +614,26 @@
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "late_fraction",
       "replicates": 200,
-      "runs_with_signal": 5,
-      "flagged": 5,
+      "runs_with_signal": 2,
+      "flagged": 2,
       "observed": 800,
-      "run_any_signal_proportion": 0.025,
+      "run_any_signal_proportion": 0.01,
       "run_any_signal_wilson95": [
-        0.010724719651761264,
-        0.05717834040664198
+        0.0027466581335444384,
+        0.0357217617161768
       ],
-      "flagged_observation_fraction": 0.00625,
-      "conditional_first_signal_day_median": 14,
-      "conditional_first_signal_day_mean": 11.2
+      "flagged_observation_fraction": 0.0025,
+      "conditional_first_signal_day_median": 10.5,
+      "conditional_first_signal_day_mean": 10.5
     },
     {
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 70,
@@ -166,6 +652,7 @@
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 113,
@@ -184,24 +671,26 @@
       "scenario": "unchanged",
       "monitoring_multiplier": 1.0,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "late_fraction",
       "replicates": 200,
-      "runs_with_signal": 5,
-      "flagged": 5,
+      "runs_with_signal": 2,
+      "flagged": 2,
       "observed": 800,
-      "run_any_signal_proportion": 0.025,
+      "run_any_signal_proportion": 0.01,
       "run_any_signal_wilson95": [
-        0.010724719651761264,
-        0.05717834040664198
+        0.0027466581335444384,
+        0.0357217617161768
       ],
-      "flagged_observation_fraction": 0.00625,
-      "conditional_first_signal_day_median": 14,
-      "conditional_first_signal_day_mean": 11.2
+      "flagged_observation_fraction": 0.0025,
+      "conditional_first_signal_day_median": 10.5,
+      "conditional_first_signal_day_mean": 10.5
     },
     {
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 200,
@@ -220,6 +709,7 @@
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 198,
@@ -238,24 +728,26 @@
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "late_fraction",
       "replicates": 200,
-      "runs_with_signal": 200,
-      "flagged": 675,
+      "runs_with_signal": 195,
+      "flagged": 601,
       "observed": 800,
-      "run_any_signal_proportion": 1.0,
+      "run_any_signal_proportion": 0.975,
       "run_any_signal_wilson95": [
-        0.9811546736227335,
-        1.0
+        0.942821659593358,
+        0.9892752803482386
       ],
-      "flagged_observation_fraction": 0.84375,
-      "conditional_first_signal_day_median": 7.0,
-      "conditional_first_signal_day_mean": 7.42
+      "flagged_observation_fraction": 0.75125,
+      "conditional_first_signal_day_median": 7,
+      "conditional_first_signal_day_mean": 8.22051282051282
     },
     {
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 175,
@@ -274,6 +766,7 @@
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 115,
@@ -292,24 +785,26 @@
       "scenario": "slowdown_1_5x",
       "monitoring_multiplier": 1.5,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "late_fraction",
       "replicates": 200,
-      "runs_with_signal": 200,
-      "flagged": 675,
+      "runs_with_signal": 195,
+      "flagged": 601,
       "observed": 800,
-      "run_any_signal_proportion": 1.0,
+      "run_any_signal_proportion": 0.975,
       "run_any_signal_wilson95": [
-        0.9811546736227335,
-        1.0
+        0.942821659593358,
+        0.9892752803482386
       ],
-      "flagged_observation_fraction": 0.84375,
-      "conditional_first_signal_day_median": 7.0,
-      "conditional_first_signal_day_mean": 7.42
+      "flagged_observation_fraction": 0.75125,
+      "conditional_first_signal_day_median": 7,
+      "conditional_first_signal_day_mean": 8.22051282051282
     },
     {
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 23,
@@ -328,6 +823,7 @@
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 60,
@@ -346,24 +842,26 @@
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "raw",
+      "p_method": "beta_binomial",
       "chart": "late_fraction",
       "replicates": 200,
-      "runs_with_signal": 168,
-      "flagged": 348,
+      "runs_with_signal": 141,
+      "flagged": 246,
       "observed": 800,
-      "run_any_signal_proportion": 0.84,
+      "run_any_signal_proportion": 0.705,
       "run_any_signal_wilson95": [
-        0.7828592983793289,
-        0.8843258796841297
+        0.6384128547538122,
+        0.7638605614315084
       ],
-      "flagged_observation_fraction": 0.435,
-      "conditional_first_signal_day_median": 7.0,
-      "conditional_first_signal_day_mean": 10.702380952380953
+      "flagged_observation_fraction": 0.3075,
+      "conditional_first_signal_day_median": 14,
+      "conditional_first_signal_day_mean": 12.27659574468085
     },
     {
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "individuals",
       "replicates": 200,
       "runs_with_signal": 156,
@@ -382,6 +880,7 @@
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
       "chart": "moving_range",
       "replicates": 200,
       "runs_with_signal": 113,
@@ -400,6 +899,349 @@
       "scenario": "improvement_0_72x",
       "monitoring_multiplier": 0.72,
       "imr_scale": "log",
+      "p_method": "beta_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 141,
+      "flagged": 246,
+      "observed": 800,
+      "run_any_signal_proportion": 0.705,
+      "run_any_signal_wilson95": [
+        0.6384128547538122,
+        0.7638605614315084
+      ],
+      "flagged_observation_fraction": 0.3075,
+      "conditional_first_signal_day_median": 14,
+      "conditional_first_signal_day_mean": 12.27659574468085
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 143,
+      "flagged": 311,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.715,
+      "run_any_signal_wilson95": [
+        0.6488465397039482,
+        0.7730499699538271
+      ],
+      "flagged_observation_fraction": 0.01555,
+      "conditional_first_signal_day_median": 7,
+      "conditional_first_signal_day_mean": 8.405594405594405
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 156,
+      "flagged": 495,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.78,
+      "run_any_signal_wilson95": [
+        0.7176120008170632,
+        0.8318346164116674
+      ],
+      "flagged_observation_fraction": 0.02475,
+      "conditional_first_signal_day_median": 7.5,
+      "conditional_first_signal_day_mean": 9.070512820512821
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 5,
+      "flagged": 5,
+      "observed": 800,
+      "run_any_signal_proportion": 0.025,
+      "run_any_signal_wilson95": [
+        0.010724719651761264,
+        0.05717834040664198
+      ],
+      "flagged_observation_fraction": 0.00625,
+      "conditional_first_signal_day_median": 14,
+      "conditional_first_signal_day_mean": 11.2
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 70,
+      "flagged": 92,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.35,
+      "run_any_signal_wilson95": [
+        0.28728824127358077,
+        0.4183653566395992
+      ],
+      "flagged_observation_fraction": 0.0046,
+      "conditional_first_signal_day_median": 10.0,
+      "conditional_first_signal_day_mean": 11.8
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 113,
+      "flagged": 252,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.565,
+      "run_any_signal_wilson95": [
+        0.49570736259794607,
+        0.6318427449730093
+      ],
+      "flagged_observation_fraction": 0.0126,
+      "conditional_first_signal_day_median": 9,
+      "conditional_first_signal_day_mean": 10.601769911504425
+    },
+    {
+      "scenario": "unchanged",
+      "monitoring_multiplier": 1.0,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 5,
+      "flagged": 5,
+      "observed": 800,
+      "run_any_signal_proportion": 0.025,
+      "run_any_signal_wilson95": [
+        0.010724719651761264,
+        0.05717834040664198
+      ],
+      "flagged_observation_fraction": 0.00625,
+      "conditional_first_signal_day_median": 14,
+      "conditional_first_signal_day_mean": 11.2
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 200,
+      "flagged": 3134,
+      "observed": 20000,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9811546736227335,
+        1.0
+      ],
+      "flagged_observation_fraction": 0.1567,
+      "conditional_first_signal_day_median": 1.0,
+      "conditional_first_signal_day_mean": 2.165
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 198,
+      "flagged": 2006,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.99,
+      "run_any_signal_wilson95": [
+        0.9642782382838231,
+        0.9972533418664555
+      ],
+      "flagged_observation_fraction": 0.1003,
+      "conditional_first_signal_day_median": 2.0,
+      "conditional_first_signal_day_mean": 3.712121212121212
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 200,
+      "flagged": 675,
+      "observed": 800,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9811546736227335,
+        1.0
+      ],
+      "flagged_observation_fraction": 0.84375,
+      "conditional_first_signal_day_median": 7.0,
+      "conditional_first_signal_day_mean": 7.42
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 175,
+      "flagged": 813,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.875,
+      "run_any_signal_wilson95": [
+        0.8219857499741765,
+        0.9138802552428735
+      ],
+      "flagged_observation_fraction": 0.04065,
+      "conditional_first_signal_day_median": 4,
+      "conditional_first_signal_day_mean": 6.091428571428572
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 115,
+      "flagged": 264,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.575,
+      "run_any_signal_wilson95": [
+        0.5057093264785485,
+        0.6414638745648614
+      ],
+      "flagged_observation_fraction": 0.0132,
+      "conditional_first_signal_day_median": 8,
+      "conditional_first_signal_day_mean": 9.68695652173913
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "monitoring_multiplier": 1.5,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 200,
+      "flagged": 675,
+      "observed": 800,
+      "run_any_signal_proportion": 1.0,
+      "run_any_signal_wilson95": [
+        0.9811546736227335,
+        1.0
+      ],
+      "flagged_observation_fraction": 0.84375,
+      "conditional_first_signal_day_median": 7.0,
+      "conditional_first_signal_day_mean": 7.42
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 23,
+      "flagged": 24,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.115,
+      "run_any_signal_wilson95": [
+        0.07786373232561955,
+        0.16664716898487572
+      ],
+      "flagged_observation_fraction": 0.0012,
+      "conditional_first_signal_day_median": 10,
+      "conditional_first_signal_day_mean": 11.173913043478262
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 60,
+      "flagged": 105,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.3,
+      "run_any_signal_wilson95": [
+        0.24074744682371402,
+        0.36679068372719265
+      ],
+      "flagged_observation_fraction": 0.00525,
+      "conditional_first_signal_day_median": 9.5,
+      "conditional_first_signal_day_mean": 11.4
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "raw",
+      "p_method": "exact_binomial",
+      "chart": "late_fraction",
+      "replicates": 200,
+      "runs_with_signal": 168,
+      "flagged": 348,
+      "observed": 800,
+      "run_any_signal_proportion": 0.84,
+      "run_any_signal_wilson95": [
+        0.7828592983793289,
+        0.8843258796841297
+      ],
+      "flagged_observation_fraction": 0.435,
+      "conditional_first_signal_day_median": 7.0,
+      "conditional_first_signal_day_mean": 10.702380952380953
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "individuals",
+      "replicates": 200,
+      "runs_with_signal": 156,
+      "flagged": 499,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.78,
+      "run_any_signal_wilson95": [
+        0.7176120008170632,
+        0.8318346164116674
+      ],
+      "flagged_observation_fraction": 0.02495,
+      "conditional_first_signal_day_median": 6.0,
+      "conditional_first_signal_day_mean": 8.224358974358974
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
+      "chart": "moving_range",
+      "replicates": 200,
+      "runs_with_signal": 113,
+      "flagged": 255,
+      "observed": 20000,
+      "run_any_signal_proportion": 0.565,
+      "run_any_signal_wilson95": [
+        0.49570736259794607,
+        0.6318427449730093
+      ],
+      "flagged_observation_fraction": 0.01275,
+      "conditional_first_signal_day_median": 8,
+      "conditional_first_signal_day_mean": 10.017699115044248
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "monitoring_multiplier": 0.72,
+      "imr_scale": "log",
+      "p_method": "exact_binomial",
       "chart": "late_fraction",
       "replicates": 200,
       "runs_with_signal": 168,
@@ -418,6 +1260,7 @@
   "p_chart_aggregation_comparison": [
     {
       "scenario": "unchanged",
+      "p_method": "beta_binomial",
       "aggregation_days": 1,
       "replicates": 200,
       "runs_with_signal": 0,
@@ -433,6 +1276,106 @@
     },
     {
       "scenario": "unchanged",
+      "p_method": "beta_binomial",
+      "replicates": 200,
+      "runs_with_signal": 2,
+      "flagged": 2,
+      "observed": 800,
+      "run_any_signal_proportion": 0.01,
+      "run_any_signal_wilson95": [
+        0.0027466581335444384,
+        0.0357217617161768
+      ],
+      "flagged_observation_fraction": 0.0025,
+      "conditional_first_signal_day_median": 10.5,
+      "conditional_first_signal_day_mean": 10.5,
+      "aggregation_days": 7
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "aggregation_days": 1,
+      "replicates": 200,
+      "runs_with_signal": 0,
+      "flagged": 0,
+      "observed": 5000,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        1.734723475976807e-18,
+        0.018845326377266575
+      ],
+      "flagged_observation_fraction": 0.0,
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "scenario": "slowdown_1_5x",
+      "p_method": "beta_binomial",
+      "replicates": 200,
+      "runs_with_signal": 195,
+      "flagged": 601,
+      "observed": 800,
+      "run_any_signal_proportion": 0.975,
+      "run_any_signal_wilson95": [
+        0.942821659593358,
+        0.9892752803482386
+      ],
+      "flagged_observation_fraction": 0.75125,
+      "conditional_first_signal_day_median": 7,
+      "conditional_first_signal_day_mean": 8.22051282051282,
+      "aggregation_days": 7
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "p_method": "beta_binomial",
+      "aggregation_days": 1,
+      "replicates": 200,
+      "runs_with_signal": 0,
+      "flagged": 0,
+      "observed": 5000,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        1.734723475976807e-18,
+        0.018845326377266575
+      ],
+      "flagged_observation_fraction": 0.0,
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "scenario": "improvement_0_72x",
+      "p_method": "beta_binomial",
+      "replicates": 200,
+      "runs_with_signal": 141,
+      "flagged": 246,
+      "observed": 800,
+      "run_any_signal_proportion": 0.705,
+      "run_any_signal_wilson95": [
+        0.6384128547538122,
+        0.7638605614315084
+      ],
+      "flagged_observation_fraction": 0.3075,
+      "conditional_first_signal_day_median": 14,
+      "conditional_first_signal_day_mean": 12.27659574468085,
+      "aggregation_days": 7
+    },
+    {
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
+      "aggregation_days": 1,
+      "replicates": 200,
+      "runs_with_signal": 0,
+      "flagged": 0,
+      "observed": 5000,
+      "run_any_signal_proportion": 0.0,
+      "run_any_signal_wilson95": [
+        1.734723475976807e-18,
+        0.018845326377266575
+      ],
+      "flagged_observation_fraction": 0.0,
+      "conditional_first_signal_day_median": null
+    },
+    {
+      "scenario": "unchanged",
+      "p_method": "exact_binomial",
       "replicates": 200,
       "runs_with_signal": 5,
       "flagged": 5,
@@ -449,6 +1392,7 @@
     },
     {
       "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
       "aggregation_days": 1,
       "replicates": 200,
       "runs_with_signal": 0,
@@ -464,6 +1408,7 @@
     },
     {
       "scenario": "slowdown_1_5x",
+      "p_method": "exact_binomial",
       "replicates": 200,
       "runs_with_signal": 200,
       "flagged": 675,
@@ -480,6 +1425,7 @@
     },
     {
       "scenario": "improvement_0_72x",
+      "p_method": "exact_binomial",
       "aggregation_days": 1,
       "replicates": 200,
       "runs_with_signal": 0,
@@ -495,6 +1441,7 @@
     },
     {
       "scenario": "improvement_0_72x",
+      "p_method": "exact_binomial",
       "replicates": 200,
       "runs_with_signal": 168,
       "flagged": 348,
@@ -515,29 +1462,29 @@
       "dataset": "stable.csv",
       "zone": "Central",
       "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.2375,
-      "monitoring_late_rate": 0.31,
-      "late_rate_delta_pp": 7.250000000000001,
-      "baseline_p90_minutes": 10.311666666666667,
-      "monitoring_p90_minutes": 9.640000000000002,
-      "monitoring_individual_signals": 3,
-      "monitoring_mr_signals": 4,
+      "baseline_calls": 110,
+      "monitoring_calls": 134,
+      "baseline_late_rate": 0.39090909090909093,
+      "monitoring_late_rate": 0.291044776119403,
+      "late_rate_delta_pp": -9.986431478968793,
+      "baseline_p90_minutes": 10.816666666666666,
+      "monitoring_p90_minutes": 10.118333333333336,
+      "monitoring_individual_signals": 1,
+      "monitoring_mr_signals": 1,
       "monitoring_late_fraction_signals": 0
     },
     {
       "dataset": "stable.csv",
       "zone": "East",
       "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.5625,
-      "monitoring_late_rate": 0.31,
-      "late_rate_delta_pp": -25.25,
-      "baseline_p90_minutes": 10.893333333333334,
-      "monitoring_p90_minutes": 9.521666666666668,
-      "monitoring_individual_signals": 0,
+      "baseline_calls": 91,
+      "monitoring_calls": 94,
+      "baseline_late_rate": 0.5604395604395604,
+      "monitoring_late_rate": 0.46808510638297873,
+      "late_rate_delta_pp": -9.235445405658172,
+      "baseline_p90_minutes": 11.816666666666666,
+      "monitoring_p90_minutes": 10.955,
+      "monitoring_individual_signals": 1,
       "monitoring_mr_signals": 2,
       "monitoring_late_fraction_signals": 0
     },
@@ -545,14 +1492,14 @@
       "dataset": "stable.csv",
       "zone": "North",
       "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.3875,
-      "monitoring_late_rate": 0.35,
-      "late_rate_delta_pp": -3.7500000000000036,
-      "baseline_p90_minutes": 9.553333333333335,
-      "monitoring_p90_minutes": 10.253333333333334,
-      "monitoring_individual_signals": 4,
+      "baseline_calls": 99,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46464646464646464,
+      "monitoring_late_rate": 0.45794392523364486,
+      "late_rate_delta_pp": -0.6702539412819786,
+      "baseline_p90_minutes": 10.833333333333334,
+      "monitoring_p90_minutes": 10.633333333333335,
+      "monitoring_individual_signals": 3,
       "monitoring_mr_signals": 6,
       "monitoring_late_fraction_signals": 0
     },
@@ -560,136 +1507,136 @@
       "dataset": "stable.csv",
       "zone": "South",
       "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.4125,
-      "monitoring_late_rate": 0.46,
-      "late_rate_delta_pp": 4.750000000000004,
-      "baseline_p90_minutes": 10.750000000000004,
-      "monitoring_p90_minutes": 10.556666666666668,
+      "baseline_calls": 103,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46601941747572817,
+      "monitoring_late_rate": 0.4672897196261682,
+      "late_rate_delta_pp": 0.12703021504400502,
+      "baseline_p90_minutes": 10.676666666666666,
+      "monitoring_p90_minutes": 10.83666666666667,
+      "monitoring_individual_signals": 0,
+      "monitoring_mr_signals": 0,
+      "monitoring_late_fraction_signals": 0
+    },
+    {
+      "dataset": "south_shift.csv",
+      "zone": "Central",
+      "priority": "high",
+      "baseline_calls": 110,
+      "monitoring_calls": 134,
+      "baseline_late_rate": 0.39090909090909093,
+      "monitoring_late_rate": 0.291044776119403,
+      "late_rate_delta_pp": -9.986431478968793,
+      "baseline_p90_minutes": 10.816666666666666,
+      "monitoring_p90_minutes": 10.118333333333336,
+      "monitoring_individual_signals": 1,
+      "monitoring_mr_signals": 1,
+      "monitoring_late_fraction_signals": 0
+    },
+    {
+      "dataset": "south_shift.csv",
+      "zone": "East",
+      "priority": "high",
+      "baseline_calls": 91,
+      "monitoring_calls": 94,
+      "baseline_late_rate": 0.5604395604395604,
+      "monitoring_late_rate": 0.46808510638297873,
+      "late_rate_delta_pp": -9.235445405658172,
+      "baseline_p90_minutes": 11.816666666666666,
+      "monitoring_p90_minutes": 10.955,
+      "monitoring_individual_signals": 1,
+      "monitoring_mr_signals": 2,
+      "monitoring_late_fraction_signals": 0
+    },
+    {
+      "dataset": "south_shift.csv",
+      "zone": "North",
+      "priority": "high",
+      "baseline_calls": 99,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46464646464646464,
+      "monitoring_late_rate": 0.45794392523364486,
+      "late_rate_delta_pp": -0.6702539412819786,
+      "baseline_p90_minutes": 10.833333333333334,
+      "monitoring_p90_minutes": 10.633333333333335,
+      "monitoring_individual_signals": 3,
+      "monitoring_mr_signals": 6,
+      "monitoring_late_fraction_signals": 0
+    },
+    {
+      "dataset": "south_shift.csv",
+      "zone": "South",
+      "priority": "high",
+      "baseline_calls": 103,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46601941747572817,
+      "monitoring_late_rate": 1.0,
+      "late_rate_delta_pp": 53.398058252427184,
+      "baseline_p90_minutes": 10.676666666666666,
+      "monitoring_p90_minutes": 15.836666666666668,
       "monitoring_individual_signals": 1,
       "monitoring_mr_signals": 0,
-      "monitoring_late_fraction_signals": 0
+      "monitoring_late_fraction_signals": 4
     },
     {
-      "dataset": "south_shift.csv",
+      "dataset": "improvement.csv",
       "zone": "Central",
       "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.2375,
-      "monitoring_late_rate": 0.31,
-      "late_rate_delta_pp": 7.250000000000001,
-      "baseline_p90_minutes": 10.311666666666667,
-      "monitoring_p90_minutes": 9.640000000000002,
+      "baseline_calls": 110,
+      "monitoring_calls": 134,
+      "baseline_late_rate": 0.39090909090909093,
+      "monitoring_late_rate": 0.03731343283582089,
+      "late_rate_delta_pp": -35.359565807327,
+      "baseline_p90_minutes": 10.816666666666666,
+      "monitoring_p90_minutes": 7.290000000000002,
+      "monitoring_individual_signals": 0,
+      "monitoring_mr_signals": 1,
+      "monitoring_late_fraction_signals": 3
+    },
+    {
+      "dataset": "improvement.csv",
+      "zone": "East",
+      "priority": "high",
+      "baseline_calls": 91,
+      "monitoring_calls": 94,
+      "baseline_late_rate": 0.5604395604395604,
+      "monitoring_late_rate": 0.0851063829787234,
+      "late_rate_delta_pp": -47.5333177460837,
+      "baseline_p90_minutes": 11.816666666666666,
+      "monitoring_p90_minutes": 7.886666666666667,
+      "monitoring_individual_signals": 5,
+      "monitoring_mr_signals": 2,
+      "monitoring_late_fraction_signals": 3
+    },
+    {
+      "dataset": "improvement.csv",
+      "zone": "North",
+      "priority": "high",
+      "baseline_calls": 99,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46464646464646464,
+      "monitoring_late_rate": 0.08411214953271028,
+      "late_rate_delta_pp": -38.053431511375436,
+      "baseline_p90_minutes": 10.833333333333334,
+      "monitoring_p90_minutes": 7.663333333333334,
+      "monitoring_individual_signals": 14,
+      "monitoring_mr_signals": 6,
+      "monitoring_late_fraction_signals": 2
+    },
+    {
+      "dataset": "improvement.csv",
+      "zone": "South",
+      "priority": "high",
+      "baseline_calls": 103,
+      "monitoring_calls": 107,
+      "baseline_late_rate": 0.46601941747572817,
+      "monitoring_late_rate": 0.09345794392523364,
+      "late_rate_delta_pp": -37.25614735504945,
+      "baseline_p90_minutes": 10.676666666666666,
+      "monitoring_p90_minutes": 7.803333333333335,
       "monitoring_individual_signals": 3,
-      "monitoring_mr_signals": 4,
-      "monitoring_late_fraction_signals": 0
-    },
-    {
-      "dataset": "south_shift.csv",
-      "zone": "East",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.5625,
-      "monitoring_late_rate": 0.31,
-      "late_rate_delta_pp": -25.25,
-      "baseline_p90_minutes": 10.893333333333334,
-      "monitoring_p90_minutes": 9.521666666666668,
-      "monitoring_individual_signals": 0,
-      "monitoring_mr_signals": 2,
-      "monitoring_late_fraction_signals": 0
-    },
-    {
-      "dataset": "south_shift.csv",
-      "zone": "North",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.3875,
-      "monitoring_late_rate": 0.35,
-      "late_rate_delta_pp": -3.7500000000000036,
-      "baseline_p90_minutes": 9.553333333333335,
-      "monitoring_p90_minutes": 10.253333333333334,
-      "monitoring_individual_signals": 4,
-      "monitoring_mr_signals": 6,
-      "monitoring_late_fraction_signals": 0
-    },
-    {
-      "dataset": "south_shift.csv",
-      "zone": "South",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.4125,
-      "monitoring_late_rate": 1.0,
-      "late_rate_delta_pp": 58.75,
-      "baseline_p90_minutes": 10.750000000000004,
-      "monitoring_p90_minutes": 15.556666666666668,
-      "monitoring_individual_signals": 4,
       "monitoring_mr_signals": 0,
-      "monitoring_late_fraction_signals": 4
-    },
-    {
-      "dataset": "improvement.csv",
-      "zone": "Central",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.2375,
-      "monitoring_late_rate": 0.07,
-      "late_rate_delta_pp": -16.75,
-      "baseline_p90_minutes": 10.311666666666667,
-      "monitoring_p90_minutes": 6.935000000000001,
-      "monitoring_individual_signals": 0,
-      "monitoring_mr_signals": 4,
-      "monitoring_late_fraction_signals": 0
-    },
-    {
-      "dataset": "improvement.csv",
-      "zone": "East",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.5625,
-      "monitoring_late_rate": 0.02,
-      "late_rate_delta_pp": -54.25,
-      "baseline_p90_minutes": 10.893333333333334,
-      "monitoring_p90_minutes": 6.863333333333334,
-      "monitoring_individual_signals": 15,
-      "monitoring_mr_signals": 2,
-      "monitoring_late_fraction_signals": 4
-    },
-    {
-      "dataset": "improvement.csv",
-      "zone": "North",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.3875,
-      "monitoring_late_rate": 0.08,
-      "late_rate_delta_pp": -30.75,
-      "baseline_p90_minutes": 9.553333333333335,
-      "monitoring_p90_minutes": 7.386666666666668,
-      "monitoring_individual_signals": 10,
-      "monitoring_mr_signals": 6,
-      "monitoring_late_fraction_signals": 3
-    },
-    {
-      "dataset": "improvement.csv",
-      "zone": "South",
-      "priority": "high",
-      "baseline_calls": 80,
-      "monitoring_calls": 100,
-      "baseline_late_rate": 0.4125,
-      "monitoring_late_rate": 0.06,
-      "late_rate_delta_pp": -35.25,
-      "baseline_p90_minutes": 10.750000000000004,
-      "monitoring_p90_minutes": 7.605,
-      "monitoring_individual_signals": 0,
-      "monitoring_mr_signals": 0,
-      "monitoring_late_fraction_signals": 3
+      "monitoring_late_fraction_signals": 2
     }
   ]
 }

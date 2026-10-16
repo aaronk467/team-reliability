@@ -6,6 +6,8 @@ Use --ca-forward only in TLS-inspecting workspaces whose Chromium trust store
 lacks the installed proxy CA. Every forwarded request retains TLS verification.
 """
 import argparse
+import csv
+import io
 import ssl
 import urllib.error
 import urllib.request
@@ -19,7 +21,7 @@ parser.add_argument('--screenshot')
 args = parser.parse_args()
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(executable_path=args.browser, headless=True, args=['--no-sandbox'])
+    browser = p.chromium.launch(executable_path=None if args.browser=='auto' else args.browser, headless=True, args=['--no-sandbox'])
     page = browser.new_page(viewport={'width': 1440, 'height': 1000}, timezone_id='UTC')
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
@@ -46,16 +48,32 @@ with sync_playwright() as p:
         return response.json()
     initial = analyze_response(lambda: page.goto(args.url, wait_until='networkidle', timeout=60000))
     assert initial['priority'] == 'high' and initial['imr_scale'] == 'log' and initial['aggregation_days'] == 7
-    assert initial['summary']['count'] == 720
+    assert initial['summary']['count'] == 845
+    assert initial['p_method']=='beta_binomial'
+    assert initial['delay_patterns']['reason_recorded_count'] > 0
     assert page.locator('svg[role=img]').count() == 3
-    for name, late_rate, signals in [('stable', .46, 0), ('improvement', .06, 3), ('south_shift', 1., 4)]:
+    for name, late_rate, signals in [('stable', 50/107, 0), ('improvement', 10/107, 2), ('south_shift', 1., 4)]:
         result = analyze_response(lambda: page.locator('#dataset').select_option(name))
         south = next(z for z in result['zones'] if z['zone'] == 'South')
         assert south['comparison']['monitoring']['late_rate'] == late_rate
         assert sum(p['signal'] for p in south['p_chart']['points'] if not p['in_baseline']) == signals
     daily = analyze_response(lambda: page.locator('#aggregation').select_option('1'))
-    assert not any(p['signal'] for z in daily['zones'] if z['zone'] == 'South' for p in z['p_chart']['points'] if not p['in_baseline'])
+    assert daily['aggregation_days']==1
     analyze_response(lambda: page.locator('#aggregation').select_option('7'))
+    assert page.get_by_role('heading',name='Delay patterns · investigation context').is_visible()
+    page.get_by_label('Delay patterns scope').select_option('all')
+    page.get_by_label('Delay patterns scope').select_option('zone')
+    analyze_response(lambda: page.locator('#p-method').select_option('exact_binomial'))
+    analyze_response(lambda: page.locator('#p-method').select_option('beta_binomial'))
+    page.locator('[name=review-owner]').fill('reviewer-01')
+    page.locator('[name=review-status]').select_option('resolved')
+    page.get_by_role('button',name='Save review',exact=True).click()
+    page.get_by_role('alert').filter(has_text='Document the action').wait_for()
+    page.locator('[name=review-action]').fill('Audit timestamps and review available units')
+    page.get_by_role('button',name='Save review',exact=True).click()
+    page.get_by_role('status').filter(has_text='Browser-local review saved').wait_for()
+    analyze_response(lambda: page.reload(wait_until='networkidle'))
+    assert page.locator('[name=review-status]').input_value()=='resolved'
     page.get_by_role('button', name='Start dispatch', exact=True).click()
     form = page.locator('form.open-form')
     form.locator('[name=id]').fill('SMOKE-OPEN')
@@ -64,7 +82,7 @@ with sync_playwright() as p:
     form.locator('[name=dispatched_at]').fill(past)
     form.get_by_role('button', name='Start dispatch', exact=True).click()
     page.get_by_text('1 high open · 1 overdue', exact=True).wait_for()
-    assert page.get_by_text('720', exact=True).is_visible(), 'Open call must not enter completed denominator'
+    assert page.get_by_text('845', exact=True).is_visible(), 'Open call must not enter completed denominator'
     analyze_response(lambda: page.reload(wait_until='networkidle'))
     page.get_by_text('1 high open · 1 overdue', exact=True).wait_for()
     page.get_by_role('button', name='Log completed call', exact=True).click()
@@ -80,13 +98,17 @@ with sync_playwright() as p:
     row.get_by_role('button', name='Use now', exact=True).click()
     analyze_response(lambda: row.get_by_role('button', name='Record arrival', exact=True).click())
     page.get_by_text('0 high open · 0 overdue', exact=True).wait_for()
-    page.get_by_text('721', exact=True).wait_for()
+    page.get_by_text('846', exact=True).wait_for()
     analyze_response(lambda: page.reload(wait_until='networkidle'))
-    page.get_by_text('721', exact=True).wait_for()
+    page.get_by_text('846', exact=True).wait_for()
     page.get_by_text('0 high open · 0 overdue', exact=True).wait_for()
     with page.expect_download() as download:
         page.get_by_title('Export records').click()
     assert download.value.suggested_filename.endswith('.csv')
+    exported=open(download.value.path()).read()
+    exported_rows=list(csv.DictReader(io.StringIO(exported)))
+    assert all(field in exported_rows[0] for field in ['shift','traffic','units_available'])
+    assert any(r['shift']=='day' for r in exported_rows)
     page.locator('input[type=file]').set_input_files({'name': 'bad.csv', 'mimeType': 'text/csv', 'buffer': b'wrong,header\n1,2\n'})
     page.get_by_role('alert').filter(has_text='CSV needs').wait_for()
     page.evaluate("localStorage.setItem('responsewatch:pending:south_shift', '{unreadable')")
@@ -105,4 +127,4 @@ with sync_playwright() as p:
         page.reload(wait_until='networkidle')
         page.screenshot(path=args.screenshot, full_page=True)
     browser.close()
-print('PASS: exact/log defaults, all demo outcomes, daily/weekly controls, open→overdue→arrival lifecycle, reload persistence, denominator integrity, duplicate-ID rejection, corrupt-storage preservation/recovery, CSV export/error and mobile layout; no page errors.')
+print('PASS: predictive/log defaults, model switching, delay context, review workflow, optional-column export, all demo outcomes, daily/weekly controls, open→overdue→arrival lifecycle, reload persistence, denominator integrity, duplicate-ID rejection, corrupt-storage preservation/recovery, CSV export/error and mobile layout; no page errors.')
