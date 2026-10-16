@@ -1,20 +1,23 @@
 """HTTP delivery of ResponseWatch's independently usable statistical library."""
 from pathlib import Path
 import csv
+from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from .stats import analyze, validate_records
 
 ROOT = Path(__file__).resolve().parents[2]
-app = FastAPI(title="ResponseWatch", version="0.1.0", description="Frozen-baseline response time monitoring; all dates UTC.")
+app = FastAPI(title="ResponseWatch", version="0.2.0", description="Frozen-baseline response time monitoring; all dates UTC.")
 
 class AnalyzeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     records: list[dict] = Field(min_length=1,max_length=100000)
-    target_minutes: float = Field(default=8,gt=0,allow_inf_nan=False)
+    target_minutes: float = Field(default=8,gt=0,allow_inf_nan=False,strict=True)
     baseline_days: StrictInt = Field(default=20,ge=1,le=3650)
     priority: StrictStr = "all"
+    imr_scale: Literal["log", "raw"] = "log"
+    aggregation_days: StrictInt = Field(default=7,ge=1,le=365)
 
 @app.get('/api/health')
 def health():

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import "./style.css";
+import OpenCalls from "./OpenCalls";
 const columns = [
   "id",
   "zone",
@@ -75,6 +76,8 @@ function Chart({
   upper,
   target,
   percent = false,
+  exact = false,
+  centerLabel = "Baseline center",
 }) {
   const W = 850,
     H = 210,
@@ -94,7 +97,8 @@ function Chart({
     points
       .map((p, i) => `${X(i)},${Y(typeof key === "string" ? p[key] : key)}`)
       .join(" ");
-  const tick = (x) => (percent ? `${Math.round(x * 100)}%` : fmt(x, 0));
+  const tick = (x) =>
+    percent ? `${Math.round(x * 100)}%` : fmt(x, max < 3 ? 2 : 0);
   const boundary = points.findIndex((p) => !p.in_baseline);
   return (
     <section className="panel chart-panel">
@@ -103,12 +107,14 @@ function Chart({
           <h3>{title}</h3>
           <p>{subtitle}</p>
         </div>
-        <span className="small-badge">3σ limits</span>
+        <span className="small-badge">
+          {exact ? "Exact binomial limits" : "3σ limits"}
+        </span>
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`${title}, baseline center and three sigma control limits`}
+        aria-label={`${title}, baseline center and ${exact ? "exact binomial" : "three sigma"} control limits`}
       >
         <rect
           x={pad.l}
@@ -212,7 +218,9 @@ function Chart({
           <i className="dot orange" /> Outside limits
         </span>
         <span>– – Control limits</span>
-        <span>··· Baseline center {percent ? pct(center) : fmt(center)}</span>
+        <span>
+          ··· {centerLabel} {percent ? pct(center) : fmt(center)}
+        </span>
         {target != null && (
           <span className="purple">– – Service target {target} min</span>
         )}
@@ -229,13 +237,42 @@ function App() {
     [zone, setZone] = useState(""),
     [target, setTarget] = useState(8),
     [baseline, setBaseline] = useState(20),
-    [priority, setPriority] = useState("all"),
+    [priority, setPriority] = useState("high"),
+    [scale, setScale] = useState("log"),
+    [aggregation, setAggregation] = useState(7),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [modal, setModal] = useState(false),
     [tab, setTab] = useState("overview"),
     [source, setSource] = useState(""),
     [notice, setNotice] = useState("");
+  const current = useRef({ source, records, dataset });
+  current.current = { source, records, dataset };
+  const sourceLoading = useRef(false);
+  function assertUnchanged(snapshot) {
+    if (
+      sourceLoading.current ||
+      current.current.source !== snapshot.source ||
+      current.current.records !== snapshot.records ||
+      current.current.dataset !== snapshot.dataset
+    )
+      throw Error(
+        "The selected source or records changed during validation. Nothing was saved; please retry.",
+      );
+  }
+  function pendingRows(name) {
+    const rows = JSON.parse(
+      localStorage.getItem(`responsewatch:pending:${name}`) || "[]",
+    );
+    if (
+      !Array.isArray(rows) ||
+      rows.some((r) => !r || typeof r.id !== "string")
+    )
+      throw Error(
+        "Saved open-call data is invalid; data preserved. Resolve it in Open dispatches before logging a completed call.",
+      );
+    return rows;
+  }
   async function request(url, options) {
     const r = await fetch(url, options);
     const data = await r.json();
@@ -266,17 +303,28 @@ function App() {
   }, []);
   useEffect(() => {
     if (!dataset) return;
+    let cancelled = false;
+    sourceLoading.current = true;
     setBusy(true);
     setError("");
     request(`/api/datasets/${dataset}`)
       .then((data) => {
+        if (cancelled) return;
         const base = Array.isArray(data) ? data : data.records;
         let extra = [];
         try {
           extra = JSON.parse(
             localStorage.getItem(`responsewatch:${dataset}`) || "[]",
           );
-        } catch {}
+        } catch (e) {
+          throw Error(
+            `Saved completed records cannot be read; data preserved. ${e.message}`,
+          );
+        }
+        if (!Array.isArray(extra))
+          throw Error(
+            "Saved completed records must be an array; data preserved.",
+          );
         setRecords([...base, ...extra]);
         setSource(dataset);
         setNotice(
@@ -285,8 +333,18 @@ function App() {
             : "",
         );
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setBusy(false));
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          sourceLoading.current = false;
+          setBusy(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [dataset]);
   useEffect(() => {
     if (!records.length) return;
@@ -301,6 +359,8 @@ function App() {
         target_minutes: Number(target),
         baseline_days: Number(baseline),
         priority,
+        imr_scale: scale,
+        aggregation_days: Number(aggregation),
       }),
     })
       .then((data) => {
@@ -322,7 +382,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [records, target, baseline, priority]);
+  }, [records, target, baseline, priority, scale, aggregation]);
   const selected = result?.zones.find((z) => z.zone === zone);
   const alerts =
     selected?.imr.points.filter(
@@ -351,7 +411,14 @@ function App() {
       if (!f) return;
       const rows = parseCSV(await f.text());
       if (!rows.length) throw Error("CSV has no records.");
-      setRecords(rows);
+      const saved = JSON.parse(
+        localStorage.getItem(`responsewatch:${f.name}`) || "[]",
+      );
+      if (!Array.isArray(saved))
+        throw Error(
+          "Saved uploaded-source records are invalid; data preserved.",
+        );
+      setRecords([...rows, ...saved]);
       setSource(f.name);
       setNotice(
         "Uploaded data stays in this browser session and is sent to the analysis API.",
@@ -362,16 +429,60 @@ function App() {
     }
     e.target.value = "";
   }
+  async function completeOpen(row, removePending) {
+    const snapshot = { source, records, dataset };
+    assertUnchanged(snapshot);
+    row = { ...row, id: row.id.trim(), zone: row.zone.trim() };
+    if (records.some((r) => r.id.trim() === row.id))
+      throw Error("Call ID already exists in completed records.");
+    await request("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        records: [...records, row],
+        target_minutes: Number(target),
+        baseline_days: Number(baseline),
+        priority,
+        imr_scale: scale,
+        aggregation_days: Number(aggregation),
+      }),
+    });
+    assertUnchanged(snapshot);
+    const key = `responsewatch:${snapshot.source}`;
+    const saved = JSON.parse(localStorage.getItem(key) || "[]");
+    if (!Array.isArray(saved))
+      throw Error("Saved completed-call data is invalid; data preserved.");
+    localStorage.setItem(key, JSON.stringify([...saved, row]));
+    try {
+      removePending();
+    } catch (e) {
+      localStorage.setItem(key, JSON.stringify(saved));
+      throw e;
+    }
+    current.current = { ...current.current, records: [...records, row] };
+    setRecords(current.current.records);
+    setNotice(
+      "Arrival validated and added to completed analysis. This is a browser-local demonstration.",
+    );
+  }
   async function saveCall(e) {
     e.preventDefault();
     const form = new FormData(e.target);
     const row = Object.fromEntries(form);
+    const snapshot = { source, records, dataset };
     try {
+      assertUnchanged(snapshot);
+      row.id = row.id.trim();
+      row.zone = row.zone.trim();
+      if (pendingRows(source).some((r) => r.id.trim() === row.id))
+        throw Error(
+          "This ID belongs to an open dispatch. Record its arrival in Open dispatches instead.",
+        );
       row.dispatched_at = new Date(row.dispatched_at).toISOString();
       row.arrived_at = new Date(row.arrived_at).toISOString();
       if (new Date(row.arrived_at) < new Date(row.dispatched_at))
         throw Error("Arrival must follow dispatch.");
-      if (records.some((r) => r.id === row.id))
+      if (records.some((r) => r.id.trim() === row.id))
         throw Error("Call ID must be unique.");
       await request("/api/analyze", {
         method: "POST",
@@ -381,14 +492,24 @@ function App() {
           target_minutes: Number(target),
           baseline_days: Number(baseline),
           priority,
+          imr_scale: scale,
+          aggregation_days: Number(aggregation),
         }),
       });
-      if (source === dataset) {
-        const key = `responsewatch:${dataset}`;
+      assertUnchanged(snapshot);
+      if (pendingRows(source).some((r) => r.id.trim() === row.id))
+        throw Error(
+          "An open dispatch now uses this ID. Nothing was saved; record its arrival instead.",
+        );
+      if (source) {
+        const key = `responsewatch:${source}`;
         const saved = JSON.parse(localStorage.getItem(key) || "[]");
+        if (!Array.isArray(saved))
+          throw Error("Saved completed-call data is invalid; data preserved.");
         localStorage.setItem(key, JSON.stringify([...saved, row]));
       }
-      setRecords([...records, row]);
+      current.current = { ...current.current, records: [...records, row] };
+      setRecords(current.current.records);
       setModal(false);
       setNotice(
         "Completed call added. Demo additions are stored in this browser, not a production dispatch database.",
@@ -535,6 +656,28 @@ function App() {
                 <option value="standard">Standard</option>
               </select>
             </div>
+            <div className="control">
+              <label htmlFor="scale">I-MR scale</label>
+              <select
+                id="scale"
+                value={scale}
+                onChange={(e) => setScale(e.target.value)}
+              >
+                <option value="log">Log time (recommended)</option>
+                <option value="raw">Raw minutes</option>
+              </select>
+            </div>
+            <div className="control">
+              <label htmlFor="aggregation">Proportion chart buckets</label>
+              <select
+                id="aggregation"
+                value={aggregation}
+                onChange={(e) => setAggregation(Number(e.target.value))}
+              >
+                <option value={7}>7 UTC days</option>
+                <option value={1}>1 UTC day</option>
+              </select>
+            </div>
             <div className="control-actions">
               <label className="icon-button upload" title="Upload CSV">
                 <Upload size={17} />
@@ -571,6 +714,15 @@ function App() {
             </div>
           )}
           {notice && <div className="notice">{notice}</div>}
+          {(tab === "overview" || tab === "log") && (
+            <OpenCalls
+              source={source}
+              target={target}
+              priority={priority}
+              records={records}
+              onComplete={completeOpen}
+            />
+          )}
           {tab === "overview" && (
             <>
               {summary && (
@@ -578,7 +730,7 @@ function App() {
                   <Metric
                     label="COMPLETED RESPONSES"
                     value={summary.count.toLocaleString()}
-                    detail="Observed calls · selected priority"
+                    detail="All observed periods · selected priority"
                     icon={<Radio />}
                   />
                   <Metric
@@ -588,13 +740,13 @@ function App() {
                         {fmt(summary.p90_minutes)} <small>min</small>
                       </>
                     }
-                    detail="90% of observed responses at or below"
+                    detail="All periods · 90% at or below"
                     icon={<Clock3 />}
                   />
                   <Metric
                     label="ABOVE SERVICE TARGET"
                     value={pct(summary.late_rate)}
-                    detail={`${summary.late_count} calls took more than ${target} minutes`}
+                    detail={`All periods · ${summary.late_count} calls > ${target} min`}
                     icon={<AlertTriangle />}
                     warning
                   />
@@ -605,6 +757,12 @@ function App() {
                     icon={<ShieldCheck />}
                   />
                 </div>
+              )}
+              {result?.comparison && (
+                <Comparison
+                  title="All zones · baseline vs monitoring"
+                  data={result.comparison}
+                />
               )}
               <div className="section-heading">
                 <div>
@@ -645,7 +803,7 @@ function App() {
                               (p) => !p.in_baseline && p.signal,
                             ).length
                           }{" "}
-                          daily p signals · {z.count} calls · p90{" "}
+                          period proportion signals · {z.count} calls · p90{" "}
                           {fmt(z.p90_minutes)}m
                         </span>
                         <span className={n ? "signal-tag" : "stable-tag"}>
@@ -677,6 +835,12 @@ function App() {
                       {selected.baseline_count} baseline calls
                     </span>
                   </div>
+                  {selected.comparison && (
+                    <Comparison
+                      title={`${selected.zone} · baseline vs monitoring`}
+                      data={selected.comparison}
+                    />
+                  )}
                   {selected.warnings.map((w) => (
                     <div className="warning" key={w}>
                       <AlertTriangle size={15} />
@@ -685,7 +849,16 @@ function App() {
                   ))}
                   <Chart
                     title="Individual response times"
-                    subtitle="Dispatch to on-scene · minutes · chronological calls"
+                    centerLabel={
+                      scale === "log"
+                        ? "Baseline geometric mean (min)"
+                        : "Baseline mean (min)"
+                    }
+                    subtitle={
+                      scale === "log"
+                        ? "Log I-MR · center and limits backtransformed to minutes"
+                        : "Raw I-MR · dispatch to on-scene minutes"
+                    }
                     points={selected.imr.points}
                     value="minutes"
                     center={selected.imr.center}
@@ -696,7 +869,11 @@ function App() {
                   <div className="chart-grid">
                     <Chart
                       title="Moving range"
-                      subtitle="Absolute difference between consecutive calls · minutes"
+                      subtitle={
+                        scale === "log"
+                          ? "Absolute successive log-time differences · dimensionless log ratio"
+                          : "Absolute difference between consecutive calls · minutes"
+                      }
                       points={selected.imr.points
                         .filter((p) => p.moving_range != null)
                         .map((p) => ({ ...p, signal: p.mr_signal }))}
@@ -706,8 +883,9 @@ function App() {
                       upper={selected.imr.mr_ucl}
                     />
                     <Chart
-                      title="Daily above-target proportion"
-                      subtitle="p chart · limits adapt to observed daily call volume"
+                      title="Above-target proportion"
+                      subtitle={`Exact binomial chart · ${aggregation}-day UTC buckets · limits adapt to n`}
+                      exact
                       points={selected.p_chart.points}
                       value="proportion"
                       center={selected.p_chart.center}
@@ -716,13 +894,19 @@ function App() {
                       percent
                     />
                   </div>
+                  <p className="period-note">
+                    Buckets are anchored separately at baseline and monitoring
+                    starts. Final buckets may be partial and should be treated
+                    as provisional; missing calendar days are not zero-demand
+                    observations.
+                  </p>
                   <section className="panel daily-signals">
                     <div className="panel-heading">
                       <div>
-                        <h3>Daily proportion signals</h3>
+                        <h3>Period proportion signals</h3>
                         <p>
-                          Monitoring days outside p-chart limits; inspect daily
-                          denominators and call mix.
+                          Monitoring periods outside exact binomial limits;
+                          inspect period denominators and call mix.
                         </p>
                       </div>
                     </div>
@@ -733,7 +917,7 @@ function App() {
                         <table>
                           <thead>
                             <tr>
-                              <th>UTC day</th>
+                              <th>UTC period</th>
                               <th>Calls (n)</th>
                               <th>Above target</th>
                               <th>Proportion</th>
@@ -746,7 +930,10 @@ function App() {
                               .filter((p) => !p.in_baseline && p.signal)
                               .map((p) => (
                                 <tr key={p.date}>
-                                  <td>{p.date}</td>
+                                  <td>
+                                    {p.period_start || p.date} –{" "}
+                                    {p.period_end || p.date}
+                                  </td>
                                   <td>{p.n}</td>
                                   <td>{p.late_count}</td>
                                   <td>{pct(p.proportion)}</td>
@@ -765,9 +952,7 @@ function App() {
                       </div>
                     ) : (
                       <div className="empty">
-                        <strong>
-                          No monitoring-period daily p-chart signals
-                        </strong>
+                        <strong>No monitoring-period proportion signals</strong>
                         <p>
                           Absence of signals does not imply the service target
                           is met.
@@ -835,7 +1020,7 @@ function App() {
                         <Check size={22} />
                         <strong>No monitoring-period I-MR signals</strong>
                         <p>
-                          Review the daily p chart and service-target
+                          Review the proportion chart and service-target
                           performance alongside these limits.
                         </p>
                       </div>
@@ -923,25 +1108,44 @@ function App() {
                 only; missing arrivals and canceled calls need a separate
                 operational review.
               </p>
-              <h3>Individual and moving-range charts</h3>
+              <h3>Log I-MR by default</h3>
               <p>
-                Calls are ordered by dispatch time within each zone. The first
-                configured UTC calendar days form a frozen baseline. The
-                individual center is the baseline mean, and limits are mean ± 3
-                × mean moving range / 1.128 (lower limit clipped at zero). The
-                moving-range upper limit is 3.267 × baseline mean moving range.
-                A point strictly outside a limit is flagged; other run rules are
-                not applied.
+                The first configured UTC calendar days form a frozen baseline.
+                Calls are ordered by dispatch within zone. Default log I-MR
+                models natural-log response times: limits are log mean ± 3 ×
+                mean successive log moving range / 1.128, then exponentiated for
+                display in minutes. The displayed center is a geometric mean.
+                Log moving ranges are dimensionless log ratios; their upper
+                limit is 3.267 × baseline mean log moving range. Raw-minute I-MR
+                is also available. Nonpositive durations cannot use logarithms.
+                Points strictly outside limits are flagged; no other run rules
+                apply.
               </p>
-              <h3>Daily p chart and uncertainty</h3>
+              <h3>Exact binomial proportion chart</h3>
               <p>
                 A response is above target only when its duration is strictly
-                greater than your threshold. The p-chart center is the pooled
-                baseline above-target proportion. Limits use each observed day's
-                call count: p ± 3√(p(1−p)/n), bounded by zero and one. Days
-                without calls are omitted. Small expected counts or
-                all-on-time/all-late baselines make this approximation
-                unreliable. Summary uncertainty uses a 95% Wilson interval.
+                greater than the threshold. The pooled baseline above-target
+                proportion estimates risk. For each 1- or 7-day UTC period,
+                lower and upper integer count quantiles come from Binomial(n,
+                baseline risk) with equal tails totaling 0.002699796 (the
+                nominal three-sigma tail probability). A count strictly outside
+                those bounds signals. Limits shown as proportions are discrete
+                and can be conservative. Baseline and monitoring periods are
+                binned separately; empty periods are omitted. Zero/one baseline
+                risk remains degenerate and uncertain. This is a plug-in chart:
+                baseline-risk estimation uncertainty is not included in its
+                limits.
+              </p>
+              <h3>Before and after</h3>
+              <p>
+                Compare completed-call count, above-target proportion with a 95%
+                Wilson interval, and interpolated 90th-percentile response time
+                between the fixed baseline and later observations.
+                Percentage-point and minute differences are descriptive, not
+                causal treatment effects or significance tests. Priority
+                defaults to high to reduce case-mix confounding. Unequal
+                periods, missing calls, changes in workload and priority
+                assignment can distort comparisons.
               </p>
               <h3>Use these signals carefully</h3>
               <p>
@@ -1056,6 +1260,72 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+function Comparison({ title, data }) {
+  const b = data.baseline,
+    m = data.monitoring;
+  return (
+    <section className="panel comparison">
+      <div className="panel-heading">
+        <div>
+          <h3>{title}</h3>
+          <p>
+            Same priority and target · observed completed calls only ·
+            descriptive comparison
+          </p>
+        </div>
+        <span className="small-badge">Frozen baseline</span>
+      </div>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Calls</th>
+              <th>Above target</th>
+              <th>95% Wilson interval</th>
+              <th>90th percentile</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Baseline", b],
+              ["Monitoring", m],
+            ].map(([label, x]) => (
+              <tr key={label}>
+                <td>{label}</td>
+                <td>{x?.count ?? "—"}</td>
+                <td>{pct(x?.late_rate)}</td>
+                <td>
+                  {x
+                    ? `${pct(x.late_ci_low)} – ${pct(x.late_ci_high)}`
+                    : "No observations"}
+                </td>
+                <td>{x ? `${fmt(x.p90_minutes)} min` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="comparison-delta">
+        <span>Monitoring − baseline</span>
+        <strong>
+          {data.late_rate_delta_pp == null
+            ? "—"
+            : `${data.late_rate_delta_pp > 0 ? "+" : ""}${fmt(data.late_rate_delta_pp)} percentage points above target`}
+        </strong>
+        <strong>
+          {data.p90_delta_minutes == null
+            ? "—"
+            : `${data.p90_delta_minutes > 0 ? "+" : ""}${fmt(data.p90_delta_minutes)} min at p90`}
+        </strong>
+        <small>
+          Negative differences indicate lower observed values. Not a causal
+          effect.
+        </small>
+      </div>
+    </section>
   );
 }
 function Metric({ label, value, detail, icon, warning }) {

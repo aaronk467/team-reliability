@@ -4,7 +4,7 @@
 
 ResponseWatch helps ambulance dispatch supervisors identify zones with unusually variable dispatch-to-arrival times and frequent missed response targets. A React/Vite dashboard presents a Python statistical library and FastAPI REST API. The focus is transparent statistical process control, with three reproducible synthetic dispatch logs for demonstration.
 
-Select a dataset, priority, response-time target, and baseline length. Review zone summaries, the empirical 90th percentile, late-call risk with Wilson 95% intervals, individuals/moving-range charts, and daily late-fraction charts. Compare the stable scenario with the planted South deterioration and subsequent-period improvement scenarios. Signals identify where to investigate; they do not establish why a delay occurred or predict patient outcomes. The eight-minute default is illustrative and must be replaced with locally agreed policy.
+Select a dataset, priority, response-time target, and baseline length. Review zone summaries, the empirical 90th percentile, late-call risk with Wilson 95% intervals, log-scale individuals/moving-range charts, and seven-day exact-binomial late-fraction charts. Compare baseline and monitoring risk and p90 directly; raw-scale I-MR and one-day bins remain available. Compare the stable scenario with the planted South deterioration and subsequent-period improvement scenarios. Signals identify where to investigate; they do not establish why a delay occurred or predict patient outcomes. The eight-minute default is illustrative and must be replaced with locally agreed policy.
 
 ![ResponseWatch dashboard using the synthetic South-shift scenario](docs/dashboard.png)
 
@@ -42,7 +42,9 @@ Open the Vite URL printed by the frontend command. The development frontend prox
   ],
   "target_minutes": 8,
   "baseline_days": 20,
-  "priority": "high"
+  "priority": "high",
+  "imr_scale": "log",
+  "aggregation_days": 7
 }
 ```
 
@@ -54,11 +56,12 @@ from responsewatch.stats import analyze, validate_records
 
 with open("datasets/south_shift.csv", newline="") as handle:
     records = list(csv.DictReader(handle))
-report = analyze(records, target_minutes=8, baseline_days=20, priority="high")
+report = analyze(records, target_minutes=8, baseline_days=20,
+                 priority="high", imr_scale="log", aggregation_days=7)
 print(report["summary"])
 ```
 
-`analyze(records, target_minutes=8.0, baseline_days=20, priority="all")` returns overall and per-zone risk summaries, baseline dates, I-MR points and limits, daily p-chart points and limits, and warnings. `target_minutes` must be finite and positive; `baseline_days` is an integer from 1 to 3650; `priority` is an exact priority label or `all`. `validate_records(records)` validates a nonempty list of up to 100,000 record dictionaries and returns normalized copies sorted by dispatch time and ID. Invalid inputs raise `ValueError`. See [the statistical source](backend/responsewatch/stats.py) and [methods](docs/methods.md) for implementation, assumptions, and interpretation. Validation includes independently known statistical answers before presentation checks.
+`analyze(records, target_minutes=8.0, baseline_days=20, priority="all", imr_scale="log", aggregation_days=7)` returns overall and per-zone risk summaries, baseline/monitoring comparisons, baseline dates, I-MR points and limits, aggregated exact-binomial p-chart points and limits, and warnings. `target_minutes` must be finite and positive; `baseline_days` is an integer from 1 to 3650; `priority` is an exact priority label or `all`; `imr_scale` is `log` or `raw`; `aggregation_days` is an integer from 1 to 365 selecting nonoverlapping bin length (seven days by default, one day for finer but low-power review). `validate_records(records)` validates a nonempty list of up to 100,000 record dictionaries and returns normalized copies sorted by dispatch time and ID. Invalid inputs raise `ValueError`. See [the statistical source](backend/responsewatch/stats.py) and [methods](docs/methods.md) for implementation, assumptions, and interpretation. Validation includes independently known statistical answers before presentation checks.
 
 ## Demonstrations and collection
 
@@ -66,9 +69,10 @@ print(report["summary"])
 - [Codebook](datasets/CODEBOOK.md): each field, units, allowed values, and derived measures.
 - [Collection protocol](docs/collection.md): field workflow, clocks, privacy, missingness, and denominator handling.
 - [Statistical methods](docs/methods.md): control limits, uncertainty, and limitations.
+- [Judge walkthrough](docs/DEMO.md): a short demonstration with expected baseline/monitoring outcomes.
 - [Deployment](docs/deployment.md): container workflow and public publication checklist.
 
-All sample data are synthetic and contain no patient information. Upload only appropriately governed, deidentified operational logs. The current completed-call analysis does not include unresolved calls in its denominator; supervisors must separately report open and excluded records to avoid misleading real-time conclusions. This is a statistical review tool, not an emergency dispatch or clinical decision system.
+All sample data are synthetic and contain no patient information. Upload only appropriately governed, deidentified operational logs. Use the browser-local open-call register to start a dispatch, see active/overdue calls, and record arrival. Open calls stay separate from the statistical denominator until arrival is recorded; elapsed time refreshes while the page is open. Storage is local to the browser and selected source, with no shared dispatch database or background alerts. Supervisors still need a complete external register of canceled, missing, and excluded records to avoid misleading conclusions. This is a statistical review tool, not an emergency dispatch or clinical decision system.
 
 Regenerate the exact demonstration files with `python datasets/generate.py`. Installation and builds use the committed dependency files.
 
@@ -79,3 +83,9 @@ The app is deployed at [responsewatch-lpj2.onrender.com](https://responsewatch-l
 To recreate the deployment, use the committed Render Blueprint (`render.yaml`): [create a Render service](https://render.com/deploy?repo=https://github.com/aaronk467/team-reliability) with your connected GitHub account.
 
 For cloud setup, `./scripts/install.sh` installs frozen frontend dependencies, pinned Python dependencies, builds the dashboard, and runs statistical/API tests. It uses a writable temporary npm cache.
+
+## Detection benchmark
+
+The [seeded 200-run benchmark](benchmarks/README.md) measures chance signals, planted-change detection, and detection delays. It compares raw/log charts and one-day/seven-day bins, reports Monte Carlo uncertainty, and explains the limits of estimated baselines and repeated chart reviews. Reproduce it with `.venv/bin/python scripts/benchmark.py`.
+
+For a short presentation, follow the [five-minute judge walkthrough](docs/DEMO.md). It includes exact expected demo outcomes and the open-call workflow.

@@ -1,6 +1,6 @@
 # Dispatch-log codebook
 
-One row represents one ambulance dispatch with a recorded on-scene arrival. All CSVs use the same UTF-8, comma-separated header. All six columns must be present.
+One row represents one ambulance dispatch with a recorded on-scene arrival. All CSVs use the same UTF-8, comma-separated header. The five columns `id`, `zone`, `priority`, `dispatched_at`, and `arrived_at` are required for analysis. `delay_reason` is optional; all bundled files include it.
 
 | Variable | Type / allowed values | Meaning and collection source |
 | --- | --- | --- |

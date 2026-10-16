@@ -25,3 +25,14 @@ def test_datasets():
         analysis=client.post('/api/analyze',json={'records':data['records']})
         assert analysis.status_code==200, analysis.text
     assert client.get('/api/datasets/missing').status_code==404
+
+
+def test_monitoring_options_and_strict_inputs():
+    request = {"records": [ROW], "imr_scale": "raw", "aggregation_days": 1}
+    result = client.post('/api/analyze', json=request)
+    assert result.status_code == 200
+    assert result.json()['imr_scale'] == 'raw'
+    assert result.json()['aggregation_days'] == 1
+    for change in ({"aggregation_days": True}, {"aggregation_days": 0}, {"aggregation_days": 366},
+                   {"imr_scale": "unknown"}, {"target_minutes": True}):
+        assert client.post('/api/analyze', json={**request, **change}).status_code == 422

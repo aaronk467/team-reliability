@@ -1,8 +1,9 @@
 """Statistical monitoring. All calendar days are UTC; limits use baseline only.
 
-I-MR constants: d2=1.128 and D4=3.267 for successive pairs. P charts
-use pooled baseline late risk and each day's denominator. Signals are only
-single points strictly outside limits. Neither chart adjusts for case mix.
+I-MR constants: d2=1.128 and D4=3.267 for successive pairs. Default log
+I-MR limits backtransform to minutes. Nonoverlapping exact-binomial count
+limits use pooled baseline late risk. Signals are only points strictly outside
+limits. Neither chart adjusts for case mix or unresolved dispatches.
 """
 from datetime import datetime, timedelta, timezone
 import math
@@ -69,17 +70,80 @@ def _summary(rows, target):
                 p90_minutes=values[lo]+(values[hi]-values[lo])*(pos-lo))
 
 
-def analyze(records, target_minutes=8.0, baseline_days=20, priority="all"):
-    """Analyze complete observed dispatches; target exceedance means strictly >.
+# The two-sided Gaussian three-sigma tail probability. Exact-binomial bounds
+# preserve this nominal tail budget for KNOWN p; baseline p is estimated here.
+CHART_ALPHA = math.erfc(3 / math.sqrt(2))
 
-    Baseline comprises first N UTC calendar days from earliest dispatch in the
-    selected priority. Missing days are not zero-demand observations. Limits
-    never use monitoring data. At least two baseline calls are needed for I-MR.
+
+def _binomial_bounds(n, p, alpha=CHART_ALPHA):
+    """Central discrete binomial quantiles, stable without factorial overflow.
+
+    Recurrences start at the mode with relative mass 1 and move outwards;
+    no tiny mode PMF is exponentiated. Normalizing the masses avoids an
+    overflowing factorial or underflow of (1-p)**n in large bins. Quantiles
+    are the smallest integer k with CDF(k)>=q. Signals strictly outside the
+    returned bounds have each known-p tail probability <= alpha/2.
+    """
+    if p == 0:
+        return 0, 0
+    if p == 1:
+        return n, n
+    mode = min(n, math.floor((n + 1) * p))
+    weights = [0.0] * (n + 1)
+    weights[mode] = 1.0
+    for k in range(mode, 0, -1):
+        weights[k - 1] = weights[k] * k / (n - k + 1) * (1 - p) / p
+    for k in range(mode, n):
+        weights[k + 1] = weights[k] * (n - k) / (k + 1) * p / (1 - p)
+    total = math.fsum(weights)
+    lower_target, upper_target = alpha / 2 * total, (1 - alpha / 2) * total
+    lower = None
+    cumulative = 0.0
+    for k, weight in enumerate(weights):
+        cumulative += weight
+        if lower is None and cumulative >= lower_target:
+            lower = k
+        if cumulative >= upper_target:
+            return lower, k
+    # Floating summation can end a few ulps below total, never materially
+    # below the upper quantile target. This fallback handles that rounding.
+    return lower, n
+
+
+def _comparison(rows, target, baseline_end):
+    before = [r for r in rows if r['_dt'].date() < baseline_end]
+    after = [r for r in rows if r['_dt'].date() >= baseline_end]
+    b = _summary(before, target) if before else None
+    m = _summary(after, target) if after else None
+    return dict(baseline=b, monitoring=m,
+                late_rate_delta_pp=100*(m['late_rate']-b['late_rate']) if b and m else None,
+                p90_delta_minutes=m['p90_minutes']-b['p90_minutes'] if b and m else None)
+
+
+def analyze(records, target_minutes=8.0, baseline_days=20, priority="all",
+            imr_scale="log", aggregation_days=7):
+    """Monitor completed dispatches using frozen baseline limits.
+
+    Baseline is the first N UTC calendar days of the selected priority.
+    Default I-MR estimates variation in log(minutes) and backtransforms the
+    individuals center/limits into minutes; MR remains in log-ratio units.
+    Log limits are unavailable if any baseline duration is zero. A later
+    zero has no log-chart estimate and generates a warning, rather than an
+    invented offset. Raw-minute charts are available explicitly.
+
+    P charts use exact binomial quantile limits with plug-in baseline risk.
+    Bins are nonoverlapping and restart at the baseline/monitor boundary.
+    Missing dates are not fabricated as successful/zero-demand calls.
+    Comparison deltas describe observed change, not causal intervention effects.
     """
     if isinstance(target_minutes, bool) or not isinstance(target_minutes, (int,float)) or not math.isfinite(target_minutes) or target_minutes <= 0:
         raise ValueError("target_minutes must be finite and positive")
     if isinstance(baseline_days, bool) or not isinstance(baseline_days,int) or not 1 <= baseline_days <= 3650:
         raise ValueError("baseline_days must be an integer from 1 to 3650")
+    if isinstance(aggregation_days, bool) or not isinstance(aggregation_days,int) or not 1 <= aggregation_days <= 365:
+        raise ValueError("aggregation_days must be an integer from 1 to 365")
+    if imr_scale not in ('log', 'raw'):
+        raise ValueError("imr_scale must be 'log' or 'raw'")
     if not isinstance(priority,str) or not priority.strip():
         raise ValueError("priority must be a nonempty string")
     rows = validate_records(records)
@@ -89,56 +153,99 @@ def analyze(records, target_minutes=8.0, baseline_days=20, priority="all"):
         raise ValueError("no records match the priority filter")
     start = rows[0]["_dt"].date()
     end = start+timedelta(days=baseline_days)
+    observation_end = rows[-1]['_dt'].date()
     zones = []
-    for zone in sorted({r["zone"] for r in rows}):
-        group = [r for r in rows if r["zone"] == zone]
+    groups = {}
+    for row in rows:
+        groups.setdefault(row['zone'], []).append(row)
+    for zone, group in sorted(groups.items()):
         baseline = [r for r in group if r["_dt"].date() < end]
         warnings = []
         if len(baseline) < 20:
             warnings.append("Fewer than 20 baseline calls: limits are preliminary.")
-        center = mean(r["minutes"] for r in baseline) if baseline else None
-        mrbar = mean(abs(baseline[i]["minutes"]-baseline[i-1]["minutes"]) for i in range(1,len(baseline))) if len(baseline)>1 else None
+        if imr_scale == 'log' and any(r['minutes'] == 0 for r in group):
+            warnings.append("Zero-minute durations cannot be logged: affected log points and adjacent moving ranges are unavailable. Any baseline zero disables log-chart limits; verify timestamps or choose raw scale.")
+        transform = (lambda value: math.log(value) if value > 0 else None) if imr_scale == 'log' else (lambda value: value)
+        values = [transform(r['minutes']) for r in group]
+        baseline_values = values[:len(baseline)]
+        baseline_defined = bool(baseline_values) and all(v is not None for v in baseline_values)
+        transformed_center = mean(baseline_values) if baseline_defined else None
+        mrbar = mean(abs(baseline_values[i]-baseline_values[i-1]) for i in range(1,len(baseline_values))) if baseline_defined and len(baseline_values)>1 else None
         if mrbar == 0:
             warnings.append("Constant baseline: I-MR limits unavailable; collect variable observations.")
         if len(baseline)<2:
             warnings.append("At least two baseline calls are needed for I-MR limits.")
         valid = mrbar is not None and mrbar > 0
-        lcl = max(0, center-3*mrbar/1.128) if valid else None
-        ucl = center+3*mrbar/1.128 if valid else None
+        if imr_scale == 'log':
+            center = math.exp(transformed_center) if transformed_center is not None else None
+            if valid:
+                low_log, high_log = transformed_center-3*mrbar/1.128, transformed_center+3*mrbar/1.128
+                # Extremely heterogeneous timestamps can overflow exp, even
+                # though all observed durations are finite. Never emit inf.
+                try:
+                    lcl, ucl = math.exp(low_log), math.exp(high_log)
+                except OverflowError:
+                    valid = False
+                    lcl = ucl = None
+                    warnings.append("Log-chart backtransformed limits overflow: limits unavailable; review timestamp extremes.")
+            else:
+                lcl = ucl = None
+        else:
+            center = transformed_center
+            lcl = max(0, center-3*mrbar/1.128) if valid else None
+            ucl = center+3*mrbar/1.128 if valid else None
         mrucl = 3.267*mrbar if valid else None
         points=[]
         for i,r in enumerate(group):
-            mr=abs(r["minutes"]-group[i-1]["minutes"]) if i else None
+            mr=abs(values[i]-values[i-1]) if i and values[i] is not None and values[i-1] is not None else None
             points.append(dict(id=r["id"],dispatched_at=r["dispatched_at"],minutes=r["minutes"],in_baseline=r["_dt"].date()<end,
-                               signal=bool(valid and (r["minutes"]<lcl or r["minutes"]>ucl)), moving_range=mr,
+                               signal=bool(valid and values[i] is not None and (r["minutes"]<lcl or r["minutes"]>ucl)), moving_range=mr,
                                mr_signal=bool(valid and mr is not None and mr>mrucl)))
         p = sum(r["minutes"]>target_minutes for r in baseline)/len(baseline) if baseline else None
         if p in (0,1):
-            warnings.append("Baseline late proportion is 0 or 1: p-chart limits degenerate; exact binomial methods or more baseline data are advisable.")
+            warnings.append("Baseline late proportion is 0 or 1: binomial limits degenerate. A change flags any contrary outcome, but the baseline does not establish zero or certain population risk; collect more data.")
         if not baseline:
             warnings.append("No baseline calls for this zone: chart limits unavailable.")
-        days=[]
-        for day in sorted({r["_dt"].date() for r in group}):
-            daily=[r for r in group if r["_dt"].date()==day]
-            n=len(daily); late=sum(r["minutes"]>target_minutes for r in daily)
-            se=math.sqrt(p*(1-p)/n) if p is not None else None
-            lower=max(0,p-3*se) if p is not None else None
-            upper=min(1,p+3*se) if p is not None else None
-            days.append(dict(date=day.isoformat(),n=n,late_count=late,proportion=late/n,lcl=lower,ucl=upper,in_baseline=day<end,
-                             signal=bool(p is not None and (late/n<lower or late/n>upper))))
+        bins = {}
+        for r in group:
+            day = r['_dt'].date()
+            anchor = start if day < end else end
+            period_start = anchor + timedelta(days=((day-anchor).days // aggregation_days)*aggregation_days)
+            bins.setdefault(period_start, []).append(r)
+        periods=[]
+        bound_cache = {}
+        for period_start, period_rows in sorted(bins.items()):
+            in_baseline = period_start < end
+            period_end = min(period_start+timedelta(days=aggregation_days-1), end-timedelta(days=1) if in_baseline else observation_end, observation_end)
+            n=len(period_rows); late=sum(r["minutes"]>target_minutes for r in period_rows)
+            if p is not None:
+                if n not in bound_cache:
+                    bound_cache[n] = _binomial_bounds(n,p)
+                low_count, high_count = bound_cache[n]
+                lower, upper = low_count/n, high_count/n
+            else:
+                low_count = high_count = lower = upper = None
+            periods.append(dict(date=period_start.isoformat(),period_start=period_start.isoformat(),period_end=period_end.isoformat(),
+                                n=n,late_count=late,proportion=late/n,lcl=lower,ucl=upper,lcl_count=low_count,ucl_count=high_count,
+                                in_baseline=in_baseline,signal=bool(p is not None and (late<low_count or late>high_count))))
         baseline_i = sum(point["in_baseline"] and point["signal"] for point in points)
         baseline_mr = sum(point["in_baseline"] and point["mr_signal"] for point in points)
-        baseline_p = sum(point["in_baseline"] and point["signal"] for point in days)
+        baseline_p = sum(point["in_baseline"] and point["signal"] for point in periods)
         if baseline_i or baseline_mr or baseline_p:
             warnings.append(
                 f"Baseline may be unstable: {baseline_i} I-chart, {baseline_mr} moving-range, "
                 f"and {baseline_p} p-chart rule-1 signals. Review baseline conditions before interpreting frozen limits."
             )
         zones.append(dict(zone=zone,**_summary(group,target_minutes),baseline_count=len(baseline),warnings=warnings,
-                          imr=dict(center=center,lcl=lcl,ucl=ucl,mr_center=mrbar,mr_ucl=mrucl,points=points),
-                          p_chart=dict(center=p,points=days)))
-    return dict(summary=_summary(rows,target_minutes),zones=zones,target_minutes=target_minutes,baseline_days=baseline_days,
+                          comparison=_comparison(group,target_minutes,end),
+                          imr=dict(center=center,lcl=lcl,ucl=ucl,mr_center=mrbar,mr_ucl=mrucl,scale=imr_scale,
+                                   mr_units='log ratio' if imr_scale=='log' else 'minutes',points=points),
+                          p_chart=dict(center=p,method='exact_binomial',alpha=CHART_ALPHA,aggregation_days=aggregation_days,points=periods)))
+    return dict(summary=_summary(rows,target_minutes),comparison=_comparison(rows,target_minutes,end),
+                zones=zones,target_minutes=target_minutes,baseline_days=baseline_days,
                 baseline_start=start.isoformat(),baseline_end=(end-timedelta(days=1)).isoformat(),priority=priority,
+                imr_scale=imr_scale,aggregation_days=aggregation_days,
                 warnings=["Observational signals prompt investigation, not causal attribution. Completed calls only; missing arrivals require separate follow-up.",
                           "Pooled priorities can confound zone comparisons: filter priority to assess case mix before operational decisions." if priority == "all" else "Priority-stratified analysis still requires review of case mix and dispatch practice.",
-                          "Normal-approximation p-chart limits can be unreliable with small expected late/on-time counts; inspect Wilson intervals and denominators."])
+                          "Exact-binomial limits use estimated baseline risk as a plug-in, not a known population probability; they omit baseline-estimation uncertainty and require independent, common-risk calls within each period.",
+                          "Log I-MR reduces skew under multiplicative variation but does not guarantee lognormality, independent calls, or calibrated false-alarm rates. Multiple repeated charts increase chance signals." if imr_scale=='log' else "Raw I-MR can flag expected extremes from a skewed distribution. Multiple repeated charts increase chance signals."])
