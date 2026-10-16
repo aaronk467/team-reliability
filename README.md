@@ -1,5 +1,7 @@
 # ResponseWatch
 
+[Open the live app](https://responsewatch-lpj2.onrender.com) · [Live API documentation](https://responsewatch-lpj2.onrender.com/docs)
+
 ResponseWatch helps ambulance dispatch supervisors identify zones with unusually variable dispatch-to-arrival times and frequent missed response targets. A React/Vite dashboard presents a Python statistical library and FastAPI REST API. The focus is transparent statistical process control, with three reproducible synthetic dispatch logs for demonstration.
 
 Select a dataset, priority, response-time target, and baseline length. Review zone summaries, the empirical 90th percentile, late-call risk with Wilson 95% intervals, individuals/moving-range charts, and daily late-fraction charts. Compare the stable scenario with the planted South deterioration and subsequent-period improvement scenarios. Signals identify where to investigate; they do not establish why a delay occurred or predict patient outcomes. The eight-minute default is illustrative and must be replaced with locally agreed policy.
@@ -68,10 +70,12 @@ print(report["summary"])
 
 All sample data are synthetic and contain no patient information. Upload only appropriately governed, deidentified operational logs. The current completed-call analysis does not include unresolved calls in its denominator; supervisors must separately report open and excluded records to avoid misleading real-time conclusions. This is a statistical review tool, not an emergency dispatch or clinical decision system.
 
-Regenerate the exact demonstration files with `python datasets/generate.py`. Installation and builds use the committed dependency files. Repository publication and a hosted public URL are separate deployment actions; this README does not imply either has already occurred.
+Regenerate the exact demonstration files with `python datasets/generate.py`. Installation and builds use the committed dependency files.
 
 ## Public deployment
 
-The repository includes a Render Blueprint (`render.yaml`). [Create the Render service](https://render.com/deploy?repo=https://github.com/aaronk467/team-reliability) using your connected GitHub account. A hosting account must approve creation; no running public deployment URL is claimed yet. See [deployment instructions](docs/deployment.md).
+The app is deployed at [responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com). Render’s deployment screenshot reports **Live** at commit `16d90d6`. Local validation passed; an automated check of the public app remains pending because this workspace’s network blocked the HTTPS connection before it reached the app. See the [deployment and validation record](docs/deployment.md).
+
+To recreate the deployment, use the committed Render Blueprint (`render.yaml`): [create a Render service](https://render.com/deploy?repo=https://github.com/aaronk467/team-reliability) with your connected GitHub account.
 
 For cloud setup, `./scripts/install.sh` installs frozen frontend dependencies, pinned Python dependencies, builds the dashboard, and runs statistical/API tests. It uses a writable temporary npm cache.
