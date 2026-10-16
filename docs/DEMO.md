@@ -1,6 +1,6 @@
 # Five-minute judge walkthrough
 
-Open [ResponseWatch](https://responsewatch-lpj 2.onrender.com) with High priority, an8-minute illustrative target, the first 20 UTC days as baseline, log I-MR, seven-day periods, and **beta-binomial predictive** limits. Select South. Use a fresh browser profile for the unmodified expected results; saved additions change the analysis.
+Open [ResponseWatch](https://responsewatch-lpj2.onrender.com) with High priority, an8-minute illustrative target, the first 20 UTC days as baseline, log I-MR, seven-day periods, and **beta-binomial predictive** limits. Select South. Use a fresh browser profile for the unmodified expected results; saved additions change the analysis.
 
 ## Reference and known changes
 
