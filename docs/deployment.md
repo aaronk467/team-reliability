@@ -5,9 +5,9 @@
 - Dashboard: [https://responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com)
 - Interactive API documentation: [https://responsewatch-lpj2.onrender.com/docs](https://responsewatch-lpj2.onrender.com/docs)
 - Render’s deployment screenshot reports **Live** for commit `16d90d6`.
-- Previous local statistical/API tests and frontend checks passed. Automated public verification remains pending: the workspace’s network rejected the HTTPS CONNECT request with HTTP 403 before it reached the application. This result does not establish an application failure.
+- Local statistical/API tests and frontend checks passed. Live HTTPS checks returned HTTP 200 for health, datasets, API documentation, and OpenAPI. All three demo analyses matched local results exactly with finite numeric outputs; see the [validation record](VALIDATION.md). Public browser checks also passed: the dashboard loaded with three charts, priority filtering and all three dataset analyses worked, and no page or HTTP errors occurred.
 
-To complete public verification from an unrestricted browser, load the dashboard and API documentation, select each of the three demonstration datasets, run an analysis, and exercise CSV import. Free Render instances may need time to wake.
+When verifying a new deployment, load the dashboard and API documentation, select each of the three demonstration datasets, run an analysis, and exercise CSV import. Free Render instances may need time to wake.
 
 ## Run the container
 

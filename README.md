@@ -74,7 +74,7 @@ Regenerate the exact demonstration files with `python datasets/generate.py`. Ins
 
 ## Public deployment
 
-The app is deployed at [responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com). Render’s deployment screenshot reports **Live** at commit `16d90d6`. Local validation passed; an automated check of the public app remains pending because this workspace’s network blocked the HTTPS connection before it reached the app. See the [deployment and validation record](docs/deployment.md).
+The app is deployed at [responsewatch-lpj2.onrender.com](https://responsewatch-lpj2.onrender.com). Render’s deployment screenshot reports **Live** at commit `16d90d6`. Local validation, live HTTPS API checks, and public browser checks passed. All three demonstration analyses matched local results exactly. See the [deployment and validation record](docs/deployment.md).
 
 To recreate the deployment, use the committed Render Blueprint (`render.yaml`): [create a Render service](https://render.com/deploy?repo=https://github.com/aaronk467/team-reliability) with your connected GitHub account.
 
