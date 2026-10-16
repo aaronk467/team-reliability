@@ -6,7 +6,7 @@ Open [ResponseWatch](https://responsewatch-lpj2.onrender.com) with High priority
 
 Each of the three synthetic CSVs has 1,781 completed calls across four zones over January 1–February 14, 2026, including 845 high-priority calls. Daily volumes, priority mix, time of day, traffic and available units vary. The first 20 calendar days are the reference; monitoring begins January 21.
 
-South's high-priority baseline has 48/103 late calls (46.60%), Wilson 95 interval 37.26–56.18%, and p9010.68 min. Show the frozen reference, observed baseline proportion, posterior predictive mean, Jeffreys prior, and baseline-quality review panel. A warning calls for investigation; it does not certify the baseline as suitable.
+South's high-priority baseline has 48/103 late calls (46.60%), Wilson 95 interval 37.26–56.18%, and p90 10.68 min. Show the frozen reference, observed baseline proportion, posterior predictive mean, Jeffreys prior, and baseline-quality review panel. A warning calls for investigation; it does not certify the baseline as suitable.
 
 | Scenario | Monitoring late calls | Monitoring p90 | Risk change, percentage points | I / MR / predictive period signals |
 |---|---:|---:|---:|---:|
