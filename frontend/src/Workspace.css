@@ -1,0 +1,226 @@
+[hidden] {
+  display: none !important;
+}
+.workspace-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 6px;
+  background: #eaf0f5;
+  border: 1px solid #dce6ee;
+  border-radius: 10px;
+}
+.workspace-tabs [role="tab"] {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #536b80;
+  padding: 13px 12px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.workspace-tabs [role="tab"] svg {
+  flex-shrink: 0;
+}
+.workspace-tabs [role="tab"] small {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.workspace-tabs [aria-selected="true"] {
+  background: white;
+  color: #176f84;
+  border-color: #c6dce5;
+  box-shadow: 0 2px 5px #183b5010;
+}
+.workspace-tabs [role="tab"]:hover {
+  background: #f8fbfd;
+}
+.workspace-tabs [role="tab"]:focus-visible,
+[role="tabpanel"]:focus-visible {
+  outline: 2px solid #1682a1;
+  outline-offset: 3px;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.control-actions {
+  padding-top: 18px;
+  justify-content: flex-end;
+}
+.workspace-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 22px;
+  font-size: 11px;
+  color: #61788a;
+}
+.workspace-context label {
+  font-weight: 650;
+}
+.workspace-context select {
+  border: 1px solid #d7e3ec;
+  border-radius: 6px;
+  background: white;
+  padding: 8px 12px;
+  color: #36576e;
+  min-width: 135px;
+  max-width: 100%;
+}
+.workspace-context span {
+  margin-left: auto;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.primary-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 22px;
+}
+.supporting-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.reading-note,
+.workspace-intro p,
+.workspace-next p {
+  color: #61788a;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.reading-note {
+  margin: 0 0 18px;
+}
+.workspace-intro {
+  padding: 20px 24px;
+  margin-bottom: 22px;
+}
+.workspace-intro h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.workspace-intro p {
+  margin: 6px 0 0;
+}
+.workspace-next {
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.workspace-next p {
+  margin: 0;
+}
+.workspace-next button {
+  flex-shrink: 0;
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #157b94;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.baseline-summary {
+  margin-top: -6px;
+}
+.fault-tree {
+  margin-top: 22px;
+}
+.overview-guide {
+  margin-bottom: 24px;
+}
+.completed-records .table-scroll {
+  max-height: 460px;
+  overflow: auto;
+}
+.completed-records th {
+  position: sticky;
+  top: 0;
+}
+.nav-item {
+  font-size: 11px;
+}
+@media (max-width: 900px) {
+  .nav-item {
+    font-size: 0;
+  }
+  .controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-tabs [role="tab"] {
+    padding: 11px 8px;
+    font-size: 11px;
+  }
+  .workspace-tabs [role="tab"] small {
+    display: none;
+  }
+  .primary-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .metric > strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 550px) {
+  aside {
+    display: none;
+  }
+  main {
+    margin-left: 0;
+    width: 100%;
+  }
+  .workspace-tabs {
+    gap: 3px;
+    padding: 4px;
+  }
+  .workspace-tabs [role="tab"] {
+    flex-direction: column;
+    justify-content: flex-start;
+    text-align: center;
+    padding: 10px 5px;
+    gap: 6px;
+  }
+  .workspace-context span {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .workspace-next {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .workspace-intro {
+    padding: 18px;
+  }
+  .primary-metrics,
+  .supporting-metrics {
+    grid-template-columns: 1fr;
+  }
+  .metric-label {
+    font-size: 9px;
+  }
+  .metric p {
+    font-size: 10px;
+  }
+  .metric > strong {
+    font-size: 28px;
+  }
+  footer {
+    flex-wrap: wrap;
+    line-height: 1.6;
+  }
+}

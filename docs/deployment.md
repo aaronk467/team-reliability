@@ -38,7 +38,7 @@ The Dockerfile supports an optional BuildKit secret named `cloud_ca` containing 
 
 For a reproducible presentation with expected statistics, follow the [judge walkthrough](DEMO.md). Changes described there require deploying the current source; the earlier public-validation record identifies the version previously checked.
 
-The version 0.2 deployment was started manually with **Manual Deploy → Deploy latest commit**. If a future source update does not appear automatically, use that action and verify `/openapi.json` reports the expected version before running release checks. Documentation-only updates do not require redeploying the service.
+Previous deployments were started manually with **Manual Deploy → Deploy latest commit**. If a source update does not appear automatically, use that action before running release checks. The three-tab interface keeps API version 0.3.0 because its statistical engine is unchanged; verify the Key statistics, Dispatch workspace, and Supporting analysis tabs and the deployed source commit, rather than relying on the API version to distinguish this update. Documentation-only updates do not require redeploying the service.
 
 ## Shared resolution review storage
 

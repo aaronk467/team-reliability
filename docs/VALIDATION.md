@@ -1,5 +1,13 @@
 # Validation record
 
+## Three-tab interface verification
+
+The interface groups the same statistical analysis into Key statistics, Dispatch workspace, and Supporting analysis, with Methods & guidance retained. The statistical engine and demonstration CSVs are unchanged. The fault-tree view is a qualitative investigation map, with no computed failure probabilities or established causal paths. Completed-call inspection displays the actual Python response, frozen zone limits, target comparison, and separate individual/moving-range flags.
+
+Local verification passed the 56-test statistical/API suite and Vite production build. The updated Chromium workflow passed mouse/keyboard navigation, shared settings/zone selection, active-tab reload, preservation of unsaved dispatch/arrival/review drafts, and selected-call comparisons against API results. It also checked an exactly-at-target response and unavailable limits from a one-call baseline. Existing demo outcomes, model switching, logging, review persistence, export, validation errors, and all three tabs at 390px passed with no page errors. Final layout checks confirmed that the completed-record table scrolls independently and Methods & guidance remains reachable on mobile.
+
+These interface checks are local until the latest source is deployed and verified publicly. The public version 0.3 checks below describe the previous deployed interface.
+
 ## Version 0.3 local verification
 
 Environment: Python 3.12.14, Node 24.19.0, npm 11.9.0, system Chromium. The install script completed pinned dependency installation, the locked React/Vite production build, and **56 passing tests**.

@@ -21,6 +21,38 @@ import {
 import "./style.css";
 import OpenCalls from "./OpenCalls";
 import DelayPatterns from "./DelayPatterns";
+import { StatisticsGuide, FaultTreeGuide } from "./OverviewGuide";
+import CallInspection from "./CallInspection";
+import "./Workspace.css";
+const workspaceTabs = [
+  {
+    id: "overview",
+    label: "Key statistics",
+    icon: LayoutDashboard,
+    description:
+      "Understand performance, compare zones, and recognize unusual changes.",
+  },
+  {
+    id: "operations",
+    label: "Dispatch workspace",
+    icon: Radio,
+    description:
+      "Record responses, inspect a completed call, and organize follow-up.",
+  },
+  {
+    id: "insights",
+    label: "Supporting analysis",
+    icon: Activity,
+    description:
+      "Explore delay context, uncertainty, and the detail behind the signals.",
+  },
+];
+function readTab() {
+  const id = window.location.hash.slice(1);
+  return [...workspaceTabs.map((item) => item.id), "methods"].includes(id)
+    ? id
+    : "overview";
+}
 const columns = [
   "id",
   "zone",
@@ -251,9 +283,37 @@ function App() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [modal, setModal] = useState(false),
-    [tab, setTab] = useState("overview"),
+    [tab, setTab] = useState(readTab),
     [source, setSource] = useState(""),
     [notice, setNotice] = useState("");
+  function navigateTab(next) {
+    setTab(next);
+    window.history.replaceState(null, "", `#${next}`);
+    requestAnimationFrame(() => {
+      const destination = document.getElementById(
+        next === "methods" ? "methods-title" : `tab-${next}`,
+      );
+      destination?.focus({ preventScroll: true });
+      destination?.scrollIntoView({ block: "nearest" });
+    });
+  }
+  useEffect(() => {
+    const update = () => setTab(readTab());
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+  function tabKeyDown(event, index) {
+    let next;
+    if (event.key === "ArrowRight") next = (index + 1) % workspaceTabs.length;
+    if (event.key === "ArrowLeft")
+      next = (index + workspaceTabs.length - 1) % workspaceTabs.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = workspaceTabs.length - 1;
+    if (next == null) return;
+    event.preventDefault();
+    navigateTab(workspaceTabs[next].id);
+    document.getElementById(`tab-${workspaceTabs[next].id}`)?.focus();
+  }
   const current = useRef({ source, records, dataset });
   current.current = { source, records, dataset };
   const sourceLoading = useRef(false);
@@ -559,22 +619,24 @@ function App() {
           <ChevronDown size={14} />
         </div>
         <p className="nav-label">WORKSPACE</p>
-        <button
-          className={tab === "overview" ? "nav-item active" : "nav-item"}
-          onClick={() => setTab("overview")}
-        >
-          <LayoutDashboard size={18} /> Reliability overview
-        </button>
-        <button
-          className={tab === "log" ? "nav-item active" : "nav-item"}
-          onClick={() => setTab("log")}
-        >
-          <Radio size={18} /> Dispatch log{" "}
-          <span className="nav-count">{records.length}</span>
-        </button>
+        {workspaceTabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            className={tab === id ? "nav-item active" : "nav-item"}
+            onClick={() => navigateTab(id)}
+            aria-current={tab === id ? "page" : undefined}
+            title={label}
+          >
+            <Icon size={18} /> {label}
+            {id === "operations" && (
+              <span className="nav-count">{records.length}</span>
+            )}
+          </button>
+        ))}
         <button
           className={tab === "methods" ? "nav-item active" : "nav-item"}
-          onClick={() => setTab("methods")}
+          onClick={() => navigateTab("methods")}
+          title="Methods & guidance"
         >
           <FileText size={18} /> Methods & guidance
         </button>
@@ -591,11 +653,8 @@ function App() {
         <header>
           <div className="breadcrumb">
             Workspace <span>/</span>{" "}
-            {tab === "overview"
-              ? "Reliability overview"
-              : tab === "log"
-                ? "Dispatch log"
-                : "Methods & guidance"}
+            {workspaceTabs.find((item) => item.id === tab)?.label ||
+              "Methods & guidance"}
           </div>
           <div className="header-right">
             <span className="demo-dot" /> Demonstration environment{" "}
@@ -608,19 +667,52 @@ function App() {
               <div className="eyebrow">DISPATCH PERFORMANCE</div>
               <h1>
                 {tab === "overview"
-                  ? "Every minute matters."
-                  : tab === "log"
-                    ? "A clear record of every response."
-                    : "Understand the signals."}
+                  ? "Understand what matters."
+                  : tab === "operations"
+                    ? "Track calls. Take action."
+                    : tab === "insights"
+                      ? "Explore the supporting evidence."
+                      : "Understand the signals."}
               </h1>
               <p>
-                Monitor response-time variation, spot unusual patterns, and
-                focus your next investigation.
+                {workspaceTabs.find((item) => item.id === tab)?.description ||
+                  "Statistical methods, assumptions, and field collection guidance."}
               </p>
             </div>
-            <button className="primary" onClick={() => setModal(true)}>
-              <Plus size={17} /> Log completed call
-            </button>
+            {tab === "operations" && (
+              <button
+                className="primary"
+                onClick={() => setModal(true)}
+                aria-label="Log completed call"
+              >
+                <Plus size={17} /> Log completed call
+              </button>
+            )}
+          </div>
+          <div
+            className="workspace-tabs"
+            role="tablist"
+            aria-label="Dashboard sections"
+          >
+            {workspaceTabs.map(({ id, label, icon: Icon }, index) => (
+              <button
+                key={id}
+                id={"tab-" + id}
+                role="tab"
+                aria-label={label}
+                aria-selected={tab === id}
+                aria-controls={"panel-" + id}
+                tabIndex={
+                  tab === id || (tab === "methods" && index === 0) ? 0 : -1
+                }
+                onClick={() => navigateTab(id)}
+                onKeyDown={(event) => tabKeyDown(event, index)}
+              >
+                <Icon size={17} aria-hidden="true" />
+                <span>{label}</span>
+                <small>{index + 1}</small>
+              </button>
+            ))}
           </div>
           <div className="controls panel">
             <div className="control source-control">
@@ -750,7 +842,265 @@ function App() {
             </div>
           )}
           {notice && <div className="notice">{notice}</div>}
-          {(tab === "overview" || tab === "log") && (
+          <div className="workspace-context">
+            <label htmlFor="focus-zone">Focus zone</label>
+            <select
+              id="focus-zone"
+              value={zone}
+              onChange={(e) => setZone(e.target.value)}
+              disabled={!result}
+            >
+              {result?.zones.map((item) => (
+                <option key={item.zone} value={item.zone}>
+                  {item.zone}
+                </option>
+              ))}
+            </select>
+            <span>Dataset, settings, and zone stay the same across tabs.</span>
+          </div>
+          <section
+            id="panel-overview"
+            role="tabpanel"
+            aria-labelledby="tab-overview"
+            hidden={tab !== "overview"}
+            tabIndex={0}
+          >
+            {summary && (
+              <div className="metrics primary-metrics">
+                <Metric
+                  label="COMPLETED RESPONSES"
+                  value={summary.count.toLocaleString()}
+                  detail="All zones · all periods · selected priority"
+                  icon={<Radio />}
+                />
+                <Metric
+                  label="90TH PERCENTILE"
+                  value={
+                    <>
+                      {fmt(summary.p90_minutes)} <small>min</small>
+                    </>
+                  }
+                  detail="All zones · all periods · 90% at or below"
+                  icon={<Clock3 />}
+                />
+                <Metric
+                  label="ABOVE SERVICE TARGET"
+                  value={pct(summary.late_rate)}
+                  detail={`All periods · ${summary.late_count} calls > ${target} min`}
+                  icon={<AlertTriangle />}
+                  warning
+                />
+              </div>
+            )}
+            <StatisticsGuide
+              onOpenOperations={() => navigateTab("operations")}
+              onOpenInsights={() => navigateTab("insights")}
+            />
+            <div className="section-heading">
+              <div>
+                <h2>Where to focus</h2>
+                <p>
+                  Compare zones, then inspect the process behind the numbers.
+                </p>
+              </div>
+              <span className="small-badge">
+                {result?.zones.length || 0} zones monitored
+              </span>
+            </div>
+            <div className="zones">
+              {result?.zones.map((z) => {
+                const n = z.imr.points.filter(
+                  (p) => !p.in_baseline && (p.signal || p.mr_signal),
+                ).length;
+                return (
+                  <button
+                    key={z.zone}
+                    onClick={() => setZone(z.zone)}
+                    className={`zone-card ${zone === z.zone ? "selected" : ""}`}
+                  >
+                    <div className="zone-title">
+                      <span>
+                        <MapPin size={16} /> {z.zone}
+                      </span>
+                      <ArrowUpRight size={17} />
+                    </div>
+                    <strong>
+                      {pct(z.late_rate)}
+                      <small> above target</small>
+                    </strong>
+                    <div className="zone-footer">
+                      <span>
+                        {
+                          z.p_chart.points.filter(
+                            (p) => !p.in_baseline && p.signal,
+                          ).length
+                        }{" "}
+                        period proportion signals · {z.count} calls · p90{" "}
+                        {fmt(z.p90_minutes)}m
+                      </span>
+                      <span className={n ? "signal-tag" : "stable-tag"}>
+                        {n
+                          ? `${n} I-MR signal${n === 1 ? "" : "s"}`
+                          : "No I-MR signals"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {selected && (
+              <>
+                <div className="section-heading chart-heading">
+                  <div>
+                    <h2>
+                      {selected.zone}{" "}
+                      <span className="heading-light">
+                        / Process monitoring
+                      </span>
+                    </h2>
+                    <p>
+                      Frozen baseline limits distinguish routine variation from
+                      unusual observations.
+                    </p>
+                  </div>
+                  <span className="small-badge">
+                    {selected.baseline_count} baseline calls
+                  </span>
+                </div>
+                {selected.comparison && (
+                  <Comparison
+                    title={`${selected.zone} · baseline vs monitoring`}
+                    data={selected.comparison}
+                  />
+                )}
+                {selected.warnings.map((w) => (
+                  <div className="warning" key={w}>
+                    <AlertTriangle size={15} />
+                    {w}
+                  </div>
+                ))}
+                {selected.baseline_quality?.review_recommended && (
+                  <div className="warning baseline-summary">
+                    <AlertTriangle size={15} />
+                    <span>
+                      Review the reference period before acting on its limits.{" "}
+                      <button
+                        className="text-button"
+                        onClick={() => navigateTab("insights")}
+                      >
+                        See baseline quality
+                      </button>
+                    </span>
+                  </div>
+                )}
+                <p className="reading-note">
+                  Read the target and statistical limits separately. A response
+                  can miss the target while staying within the usual variation.
+                  Orange points need investigation; lower signals may indicate
+                  improvement.
+                </p>
+                <Chart
+                  title="Individual response times"
+                  centerLabel={
+                    scale === "log"
+                      ? "Baseline geometric mean (min)"
+                      : "Baseline mean (min)"
+                  }
+                  subtitle={
+                    scale === "log"
+                      ? "Log I-MR · center and limits backtransformed to minutes"
+                      : "Raw I-MR · dispatch to on-scene minutes"
+                  }
+                  points={selected.imr.points}
+                  value="minutes"
+                  center={selected.imr.center}
+                  lower={selected.imr.lcl}
+                  upper={selected.imr.ucl}
+                  target={Number(target)}
+                />
+                <div className="chart-grid">
+                  <Chart
+                    title="Moving range"
+                    subtitle={
+                      scale === "log"
+                        ? "Absolute successive log-time differences · dimensionless log ratio"
+                        : "Absolute difference between consecutive calls · minutes"
+                    }
+                    points={selected.imr.points
+                      .filter((p) => p.moving_range != null)
+                      .map((p) => ({ ...p, signal: p.mr_signal }))}
+                    value="moving_range"
+                    center={selected.imr.mr_center}
+                    lower={0}
+                    upper={selected.imr.mr_ucl}
+                  />
+                  <Chart
+                    title="Above-target proportion"
+                    subtitle={`${selected.p_chart.method === "beta_binomial" ? "Beta-binomial predictive" : "Binomial plug-in"} · ${aggregation}-day UTC buckets · limits adapt to n`}
+                    limitLabel={
+                      selected.p_chart.method === "beta_binomial"
+                        ? "Predictive count limits"
+                        : "Exact binomial count limits"
+                    }
+                    centerLabel={
+                      selected.p_chart.method === "beta_binomial"
+                        ? "Posterior predictive mean"
+                        : "Observed baseline rate"
+                    }
+                    exact
+                    points={selected.p_chart.points}
+                    value="proportion"
+                    center={selected.p_chart.center}
+                    lower="lcl"
+                    upper="ucl"
+                    percent
+                  />
+                </div>
+                <FaultTreeGuide
+                  target={target}
+                  selected={selected}
+                  onOpenInsights={() => navigateTab("insights")}
+                />
+                <div className="workspace-next">
+                  <p>
+                    <strong>Ready to investigate?</strong> Inspect individual
+                    calls and assign a follow-up action in the dispatch
+                    workspace.
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={() => navigateTab("operations")}
+                  >
+                    Open dispatch workspace <ArrowUpRight size={14} />
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+          <section
+            id="panel-operations"
+            role="tabpanel"
+            aria-labelledby="tab-operations"
+            hidden={tab !== "operations"}
+            tabIndex={0}
+          >
+            <div className="workspace-intro panel">
+              <h2>From a dispatch to a reviewed response</h2>
+              <p>
+                Start a call and record its arrival, or log a response that has
+                already finished. Inspect the completed point against its own
+                zone reference, then assign follow-up for the focus zone.
+              </p>
+              <p>
+                <strong>
+                  {summary?.count.toLocaleString() || "—"} completed{" "}
+                  {priority === "all" ? "all-priority" : priority + "-priority"}{" "}
+                  responses
+                </strong>{" "}
+                in this analysis. Open calls stay separate until an arrival is
+                recorded.
+              </p>
+            </div>
             <OpenCalls
               source={source}
               target={target}
@@ -758,421 +1108,104 @@ function App() {
               records={records}
               onComplete={completeOpen}
             />
-          )}
-          {tab === "overview" && (
-            <>
-              {summary && (
-                <div className="metrics">
-                  <Metric
-                    label="COMPLETED RESPONSES"
-                    value={summary.count.toLocaleString()}
-                    detail="All observed periods · selected priority"
-                    icon={<Radio />}
-                  />
-                  <Metric
-                    label="90TH PERCENTILE"
-                    value={
-                      <>
-                        {fmt(summary.p90_minutes)} <small>min</small>
-                      </>
-                    }
-                    detail="All periods · 90% at or below"
-                    icon={<Clock3 />}
-                  />
-                  <Metric
-                    label="ABOVE SERVICE TARGET"
-                    value={pct(summary.late_rate)}
-                    detail={`All periods · ${summary.late_count} calls > ${target} min`}
-                    icon={<AlertTriangle />}
-                    warning
-                  />
-                  <Metric
-                    label="95% CONFIDENCE INTERVAL"
-                    value={`${pct(summary.late_ci_low)}–${pct(summary.late_ci_high)}`}
-                    detail="Wilson interval · above-target proportion"
-                    icon={<ShieldCheck />}
-                  />
+            {result && (
+              <CallInspection
+                key={source}
+                records={records}
+                result={result}
+                target={target}
+                onZoneChange={setZone}
+                isActive={tab === "operations"}
+              />
+            )}
+            {selected && (
+              <>
+                <div className="section-heading">
+                  <div>
+                    <h2>{selected.zone} · investigation and follow-up</h2>
+                    <p>Use the focus-zone selector to review another area.</p>
+                  </div>
                 </div>
-              )}
-              {result?.comparison && (
-                <Comparison
-                  title="All zones · baseline vs monitoring"
-                  data={result.comparison}
-                />
-              )}
-              <div className="section-heading">
-                <div>
-                  <h2>Where to focus</h2>
-                  <p>
-                    Compare zones, then inspect the process behind the numbers.
-                  </p>
-                </div>
-                <span className="small-badge">
-                  {result?.zones.length || 0} zones monitored
-                </span>
-              </div>
-              <div className="zones">
-                {result?.zones.map((z) => {
-                  const n = z.imr.points.filter(
-                    (p) => !p.in_baseline && (p.signal || p.mr_signal),
-                  ).length;
-                  return (
-                    <button
-                      key={z.zone}
-                      onClick={() => setZone(z.zone)}
-                      className={`zone-card ${zone === z.zone ? "selected" : ""}`}
-                    >
-                      <div className="zone-title">
-                        <span>
-                          <MapPin size={16} /> {z.zone}
-                        </span>
-                        <ArrowUpRight size={17} />
-                      </div>
-                      <strong>
-                        {pct(z.late_rate)}
-                        <small> above target</small>
-                      </strong>
-                      <div className="zone-footer">
-                        <span>
-                          {
-                            z.p_chart.points.filter(
-                              (p) => !p.in_baseline && p.signal,
-                            ).length
-                          }{" "}
-                          period proportion signals · {z.count} calls · p90{" "}
-                          {fmt(z.p90_minutes)}m
-                        </span>
-                        <span className={n ? "signal-tag" : "stable-tag"}>
-                          {n
-                            ? `${n} I-MR signal${n === 1 ? "" : "s"}`
-                            : "No I-MR signals"}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              {selected && (
-                <>
-                  <div className="section-heading chart-heading">
+                <section className="panel signals">
+                  <div className="panel-heading">
                     <div>
-                      <h2>
-                        {selected.zone}{" "}
-                        <span className="heading-light">
-                          / Process monitoring
-                        </span>
-                      </h2>
+                      <h3>Investigation queue</h3>
                       <p>
-                        Frozen baseline limits distinguish routine variation
-                        from unusual observations.
+                        Monitoring-period I-MR signals · unusual observations
+                        are clues, not confirmed causes.
                       </p>
                     </div>
-                    <span className="small-badge">
-                      {selected.baseline_count} baseline calls
-                    </span>
+                    <span className="small-badge">{alerts.length} calls</span>
                   </div>
-                  {selected.comparison && (
-                    <Comparison
-                      title={`${selected.zone} · baseline vs monitoring`}
-                      data={selected.comparison}
-                    />
-                  )}
-                  {selected.baseline_quality && (
-                    <section className="panel baseline-quality">
-                      <h3>
-                        Baseline quality ·{" "}
-                        {selected.baseline_quality.review_recommended
-                          ? "review recommended"
-                          : "initial checks passed"}
-                      </h3>
-                      <p>
-                        {selected.baseline_quality.baseline_count} baseline
-                        calls · {selected.baseline_quality.i_signals} individual
-                        signals · {selected.baseline_quality.mr_signals}{" "}
-                        moving-range signals · I-MR limits{" "}
-                        {selected.baseline_quality.imr_limits_available
-                          ? "available"
-                          : "unavailable"}
-                        .{" "}
-                        {selected.baseline_quality.p_signals == null
-                          ? "Predictive baseline proportion signals are not evaluated."
-                          : `${selected.baseline_quality.p_signals} baseline proportion diagnostics.`}
-                      </p>
-                      {selected.baseline_quality.reasons.map((reason) => (
-                        <p key={reason}>{reason}</p>
-                      ))}
-                      <small>
-                        These checks cannot prove stability, independence,
-                        representative sampling, or constant case mix.
-                      </small>
-                    </section>
-                  )}
-                  {selected.warnings.map((w) => (
-                    <div className="warning" key={w}>
-                      <AlertTriangle size={15} />
-                      {w}
-                    </div>
-                  ))}
-                  <Chart
-                    title="Individual response times"
-                    centerLabel={
-                      scale === "log"
-                        ? "Baseline geometric mean (min)"
-                        : "Baseline mean (min)"
-                    }
-                    subtitle={
-                      scale === "log"
-                        ? "Log I-MR · center and limits backtransformed to minutes"
-                        : "Raw I-MR · dispatch to on-scene minutes"
-                    }
-                    points={selected.imr.points}
-                    value="minutes"
-                    center={selected.imr.center}
-                    lower={selected.imr.lcl}
-                    upper={selected.imr.ucl}
-                    target={Number(target)}
-                  />
-                  <div className="chart-grid">
-                    <Chart
-                      title="Moving range"
-                      subtitle={
-                        scale === "log"
-                          ? "Absolute successive log-time differences · dimensionless log ratio"
-                          : "Absolute difference between consecutive calls · minutes"
-                      }
-                      points={selected.imr.points
-                        .filter((p) => p.moving_range != null)
-                        .map((p) => ({ ...p, signal: p.mr_signal }))}
-                      value="moving_range"
-                      center={selected.imr.mr_center}
-                      lower={0}
-                      upper={selected.imr.mr_ucl}
-                    />
-                    <Chart
-                      title="Above-target proportion"
-                      subtitle={`${selected.p_chart.method === "beta_binomial" ? "Beta-binomial predictive" : "Binomial plug-in"} · ${aggregation}-day UTC buckets · limits adapt to n`}
-                      limitLabel={
-                        selected.p_chart.method === "beta_binomial"
-                          ? "Predictive count limits"
-                          : "Exact binomial count limits"
-                      }
-                      centerLabel={
-                        selected.p_chart.method === "beta_binomial"
-                          ? "Posterior predictive mean"
-                          : "Observed baseline rate"
-                      }
-                      exact
-                      points={selected.p_chart.points}
-                      value="proportion"
-                      center={selected.p_chart.center}
-                      lower="lcl"
-                      upper="ucl"
-                      percent
-                    />
-                  </div>
-                  <div className="panel model-explanation">
-                    <h3>
-                      {selected.p_chart.method === "beta_binomial"
-                        ? "Baseline uncertainty is included"
-                        : "Fixed-risk binomial reference"}
-                    </h3>
-                    <p>
-                      Observed baseline above-target rate:{" "}
-                      <strong>
-                        {pct(selected.p_chart.baseline_late_rate)}
-                      </strong>
-                      . Chart center:{" "}
-                      <strong>{pct(selected.p_chart.center)}</strong> (
-                      {selected.p_chart.method === "beta_binomial"
-                        ? "posterior predictive mean"
-                        : "observed baseline estimate"}
-                      ).
-                    </p>
-                    {selected.p_chart.method === "beta_binomial" ? (
-                      <p>
-                        Jeffreys prior Beta({selected.p_chart.prior_alpha},{" "}
-                        {selected.p_chart.prior_beta}) updates to Beta(
-                        {fmt(selected.p_chart.posterior_alpha, 1)},{" "}
-                        {fmt(selected.p_chart.posterior_beta, 1)}). Predictive
-                        limits include uncertainty in the baseline risk
-                        estimate. Baseline periods fitted this reference and are
-                        not evaluated for predictive signals. Coverage is
-                        conditional on the model; this is not a guaranteed
-                        frequentist false-alarm rate.
-                      </p>
-                    ) : (
-                      <p>
-                        Binomial limits treat the observed baseline rate as
-                        fixed. They omit uncertainty from estimating that rate,
-                        and zero/all-late baselines have degenerate limits.
-                      </p>
-                    )}
-                  </div>
-                  <p className="period-note">
-                    Buckets are anchored separately at baseline and monitoring
-                    starts. Final buckets may be partial and should be treated
-                    as provisional; missing calendar days are not zero-demand
-                    observations.
-                  </p>
-                  <section className="panel daily-signals">
-                    <div className="panel-heading">
-                      <div>
-                        <h3>Period proportion signals</h3>
-                        <p>
-                          Monitoring periods outside chosen count limits;
-                          inspect period denominators and call mix.
-                        </p>
-                      </div>
-                    </div>
-                    {selected.p_chart.points.some(
-                      (p) => !p.in_baseline && p.signal,
-                    ) ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>UTC period</th>
-                              <th>Calls (n)</th>
-                              <th>Above target</th>
-                              <th>Proportion</th>
-                              <th>Control limits</th>
-                              <th>Direction</th>
+                  {alerts.length ? (
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Call ID</th>
+                            <th>Dispatch (UTC)</th>
+                            <th>Response</th>
+                            <th>Signal</th>
+                            <th>Logged context</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {alerts.slice(0, 30).map((p) => (
+                            <tr key={p.id}>
+                              <td className="mono">{p.id}</td>
+                              <td>
+                                {p.dispatched_at.replace("T", " ").slice(0, 16)}
+                              </td>
+                              <td>{fmt(p.minutes)} min</td>
+                              <td>
+                                <span className="signal-tag">
+                                  {p.signal
+                                    ? "Individual outside limits"
+                                    : "Moving range outside limits"}
+                                </span>
+                              </td>
+                              <td>
+                                {records.find((r) => r.id === p.id)
+                                  ?.delay_reason || "Not recorded"}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {selected.p_chart.points
-                              .filter((p) => !p.in_baseline && p.signal)
-                              .map((p) => (
-                                <tr key={p.date}>
-                                  <td>
-                                    {p.period_start || p.date} –{" "}
-                                    {p.period_end || p.date}
-                                  </td>
-                                  <td>{p.n}</td>
-                                  <td>{p.late_count}</td>
-                                  <td>{pct(p.proportion)}</td>
-                                  <td>
-                                    {pct(p.lcl)} – {pct(p.ucl)}
-                                  </td>
-                                  <td>
-                                    {p.proportion > p.ucl
-                                      ? "Higher than baseline limits"
-                                      : "Lower than baseline limits"}
-                                  </td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="empty">
-                        <strong>No monitoring-period proportion signals</strong>
-                        <p>
-                          Absence of signals does not imply the service target
-                          is met.
+                          ))}
+                        </tbody>
+                      </table>
+                      {alerts.length > 30 && (
+                        <p className="table-note">
+                          Showing first 30 signals. Export records for a full
+                          review.
                         </p>
-                      </div>
-                    )}
-                  </section>
-                  <section className="panel signals">
-                    <div className="panel-heading">
-                      <div>
-                        <h3>Investigation queue</h3>
-                        <p>
-                          Monitoring-period I-MR signals · unusual observations
-                          are clues, not confirmed causes.
-                        </p>
-                      </div>
-                      <span className="small-badge">{alerts.length} calls</span>
+                      )}
                     </div>
-                    {alerts.length ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Call ID</th>
-                              <th>Dispatch (UTC)</th>
-                              <th>Response</th>
-                              <th>Signal</th>
-                              <th>Logged context</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {alerts.slice(0, 30).map((p) => (
-                              <tr key={p.id}>
-                                <td className="mono">{p.id}</td>
-                                <td>
-                                  {p.dispatched_at
-                                    .replace("T", " ")
-                                    .slice(0, 16)}
-                                </td>
-                                <td>{fmt(p.minutes)} min</td>
-                                <td>
-                                  <span className="signal-tag">
-                                    {p.signal
-                                      ? "Individual outside limits"
-                                      : "Moving range outside limits"}
-                                  </span>
-                                </td>
-                                <td>
-                                  {records.find((r) => r.id === p.id)
-                                    ?.delay_reason || "Not recorded"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {alerts.length > 30 && (
-                          <p className="table-note">
-                            Showing first 30 signals. Export records for a full
-                            review.
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="empty">
-                        <Check size={22} />
-                        <strong>No monitoring-period I-MR signals</strong>
-                        <p>
-                          Review the proportion chart and service-target
-                          performance alongside these limits.
-                        </p>
-                      </div>
-                    )}
-                    <div className="investigate">
-                      <strong>Next step</strong> Check timestamp accuracy,
-                      staffing and vehicle availability, route conditions, and
-                      case mix. A low-side signal can suggest improvement;
-                      validate it before changing the baseline.
+                  ) : (
+                    <div className="empty">
+                      <Check size={22} />
+                      <strong>No monitoring-period I-MR signals</strong>
+                      <p>
+                        Review the proportion chart and service-target
+                        performance alongside these limits.
+                      </p>
                     </div>
-                  </section>
-                  <DelayPatterns
-                    overall={result.delay_patterns}
-                    selected={selected.delay_patterns}
-                    zone={selected.zone}
-                  />
-                </>
-              )}
-              {selected && (
-                <ResolutionReviews
-                  key={`${source}:${selected.zone}`}
-                  source={source}
-                  zone={selected.zone}
-                />
-              )}
-              <div className="footnote">
-                <ShieldCheck size={16} />
-                <p>
-                  {result?.warnings?.join(" ") ||
-                    "Load a dataset to begin. Synthetic demonstrations do not establish a clinical standard."}{" "}
-                  The service target is a configurable planning threshold, not a
-                  clinical guarantee.
-                </p>
-              </div>
-            </>
-          )}
-          {tab === "log" && (
-            <section className="panel">
+                  )}
+                  <div className="investigate">
+                    <strong>Next step</strong> Check timestamp accuracy,
+                    staffing and vehicle availability, route conditions, and
+                    case mix. A low-side signal can suggest improvement;
+                    validate it before changing the baseline.
+                  </div>
+                </section>
+              </>
+            )}
+            {selected && (
+              <ResolutionReviews
+                key={`${source}:${selected.zone}`}
+                source={source}
+                zone={selected.zone}
+              />
+            )}
+            <section className="panel completed-records">
               <div className="panel-heading">
                 <div>
                   <h3>Completed dispatch records</h3>
@@ -1224,10 +1257,217 @@ function App() {
                 a live 911 integration.
               </p>
             </section>
-          )}
+          </section>
+          <section
+            id="panel-insights"
+            role="tabpanel"
+            aria-labelledby="tab-insights"
+            hidden={tab !== "insights"}
+            tabIndex={0}
+          >
+            <div className="workspace-intro panel">
+              <h2>Explore the detail behind a signal</h2>
+              <p>
+                Check uncertainty, the reference period, recorded delay
+                patterns, and period denominators. These details support the
+                main charts and help plan an investigation.
+              </p>
+            </div>
+            {summary && (
+              <div className="metrics supporting-metrics">
+                <Metric
+                  label="95% CONFIDENCE INTERVAL"
+                  value={`${pct(summary.late_ci_low)}–${pct(summary.late_ci_high)}`}
+                  detail="All zones · all periods · Wilson above-target interval"
+                  icon={<ShieldCheck />}
+                />{" "}
+                {selected && (
+                  <Metric
+                    label="FOCUS-ZONE 95% INTERVAL"
+                    value={
+                      pct(selected.late_ci_low) +
+                      "–" +
+                      pct(selected.late_ci_high)
+                    }
+                    detail={
+                      selected.zone + " · all periods · above-target proportion"
+                    }
+                    icon={<ShieldCheck />}
+                  />
+                )}
+              </div>
+            )}
+            {result?.comparison && (
+              <Comparison
+                title="All zones · baseline vs monitoring"
+                data={result.comparison}
+              />
+            )}
+            {selected && (
+              <>
+                <div className="section-heading">
+                  <div>
+                    <h2>{selected.zone} · supporting detail</h2>
+                    <p>
+                      All panels use the same priority and frozen reference as
+                      the key statistics.
+                    </p>
+                  </div>
+                </div>
+                {selected.baseline_quality && (
+                  <section className="panel baseline-quality">
+                    <h3>
+                      Baseline quality ·{" "}
+                      {selected.baseline_quality.review_recommended
+                        ? "review recommended"
+                        : "initial checks passed"}
+                    </h3>
+                    <p>
+                      {selected.baseline_quality.baseline_count} baseline calls
+                      · {selected.baseline_quality.i_signals} individual signals
+                      · {selected.baseline_quality.mr_signals} moving-range
+                      signals · I-MR limits{" "}
+                      {selected.baseline_quality.imr_limits_available
+                        ? "available"
+                        : "unavailable"}
+                      .{" "}
+                      {selected.baseline_quality.p_signals == null
+                        ? "Predictive baseline proportion signals are not evaluated."
+                        : `${selected.baseline_quality.p_signals} baseline proportion diagnostics.`}
+                    </p>
+                    {selected.baseline_quality.reasons.map((reason) => (
+                      <p key={reason}>{reason}</p>
+                    ))}
+                    <small>
+                      These checks cannot prove stability, independence,
+                      representative sampling, or constant case mix.
+                    </small>
+                  </section>
+                )}
+                <DelayPatterns
+                  overall={result.delay_patterns}
+                  selected={selected.delay_patterns}
+                  zone={selected.zone}
+                />
+                <div className="panel model-explanation">
+                  <h3>
+                    {selected.p_chart.method === "beta_binomial"
+                      ? "Baseline uncertainty is included"
+                      : "Fixed-risk binomial reference"}
+                  </h3>
+                  <p>
+                    Observed baseline above-target rate:{" "}
+                    <strong>{pct(selected.p_chart.baseline_late_rate)}</strong>.
+                    Chart center:{" "}
+                    <strong>{pct(selected.p_chart.center)}</strong> (
+                    {selected.p_chart.method === "beta_binomial"
+                      ? "posterior predictive mean"
+                      : "observed baseline estimate"}
+                    ).
+                  </p>
+                  {selected.p_chart.method === "beta_binomial" ? (
+                    <p>
+                      Jeffreys prior Beta({selected.p_chart.prior_alpha},{" "}
+                      {selected.p_chart.prior_beta}) updates to Beta(
+                      {fmt(selected.p_chart.posterior_alpha, 1)},{" "}
+                      {fmt(selected.p_chart.posterior_beta, 1)}). Predictive
+                      limits include uncertainty in the baseline risk estimate.
+                      Baseline periods fitted this reference and are not
+                      evaluated for predictive signals. Coverage is conditional
+                      on the model; this is not a guaranteed frequentist
+                      false-alarm rate.
+                    </p>
+                  ) : (
+                    <p>
+                      Binomial limits treat the observed baseline rate as fixed.
+                      They omit uncertainty from estimating that rate, and
+                      zero/all-late baselines have degenerate limits.
+                    </p>
+                  )}
+                </div>
+                <p className="period-note">
+                  Buckets are anchored separately at baseline and monitoring
+                  starts. Final buckets may be partial and should be treated as
+                  provisional; missing calendar days are not zero-demand
+                  observations.
+                </p>
+                <section className="panel daily-signals">
+                  <div className="panel-heading">
+                    <div>
+                      <h3>Period proportion signals</h3>
+                      <p>
+                        Monitoring periods outside chosen count limits; inspect
+                        period denominators and call mix.
+                      </p>
+                    </div>
+                  </div>
+                  {selected.p_chart.points.some(
+                    (p) => !p.in_baseline && p.signal,
+                  ) ? (
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>UTC period</th>
+                            <th>Calls (n)</th>
+                            <th>Above target</th>
+                            <th>Proportion</th>
+                            <th>Control limits</th>
+                            <th>Direction</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selected.p_chart.points
+                            .filter((p) => !p.in_baseline && p.signal)
+                            .map((p) => (
+                              <tr key={p.date}>
+                                <td>
+                                  {p.period_start || p.date} –{" "}
+                                  {p.period_end || p.date}
+                                </td>
+                                <td>{p.n}</td>
+                                <td>{p.late_count}</td>
+                                <td>{pct(p.proportion)}</td>
+                                <td>
+                                  {pct(p.lcl)} – {pct(p.ucl)}
+                                </td>
+                                <td>
+                                  {p.proportion > p.ucl
+                                    ? "Higher than baseline limits"
+                                    : "Lower than baseline limits"}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="empty">
+                      <strong>No monitoring-period proportion signals</strong>
+                      <p>
+                        Absence of signals does not imply the service target is
+                        met.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+          </section>
+          <div className="footnote">
+            <ShieldCheck size={16} />
+            <p>
+              {result?.warnings?.join(" ") ||
+                "Load a dataset to begin. Synthetic demonstrations do not establish a clinical standard."}{" "}
+              The service target is a configurable planning threshold, not a
+              clinical guarantee.
+            </p>
+          </div>
           {tab === "methods" && (
             <section className="panel methods">
-              <h2>Statistics before averages</h2>
+              <h2 id="methods-title" tabIndex={-1}>
+                Statistics before averages
+              </h2>
               <p>
                 ResponseWatch helps dispatch supervisors investigate variation
                 in dispatch-to-on-scene times. It analyzes completed responses
@@ -1318,6 +1558,12 @@ function App() {
               Quality control for emergency response · Synthetic demonstration
               data
             </span>
+            <button
+              className="text-button"
+              onClick={() => navigateTab("methods")}
+            >
+              Methods & guidance
+            </button>
             <a href="/docs" target="_blank" rel="noreferrer">
               API documentation <ArrowUpRight size={12} />
             </a>

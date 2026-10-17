@@ -17,6 +17,16 @@ ResponseWatch helps ambulance dispatch supervisors investigate response-time var
 - Assign a review owner, action, status, and follow-up date. Browser-local mode works immediately; optional token-protected shared SQLite mode needs operator-provided persistent storage.
 - Import/export CSV, retaining optional context columns, and export review backups.
 
+## Find your way around
+
+Shared dataset and analysis settings apply across three work tabs:
+
+- **Key statistics** explains the tool's purpose and prioritizes the main performance measures, zone comparisons, and I-MR/predictive charts. A qualitative fault-tree guide organizes possible explanations to investigate; it does not calculate failure probabilities or establish causes.
+- **Dispatch workspace** contains open-dispatch tracking, completed-call logging and records, calls outside the individual-chart limits, and resolution reviews. Select a completed call to compare its response with its zone's baseline limits and service target.
+- **Supporting analysis** contains delay patterns, baseline-quality diagnostics, detailed period counts, and model information for closer investigation.
+
+**Methods & guidance** remains available for statistical assumptions and interpretation. Switching work tabs changes the view, not the statistical calculations or selected dataset.
+
 ## Run locally
 
 Use Python 3.11+ and Node.js 22.12+ (Python 3.12 and Node 24 were verified). From the repository root:
@@ -71,7 +81,7 @@ CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates
 
 ## Deployment and storage limits
 
-The committed Dockerfile and Render Blueprint serve the frontend and API together. See [deployment.md](docs/deployment.md) for reproduction and optional shared storage configuration. Version 0.3.0 from commit `de729ae` is deployed; public analyses for all three datasets and both models exactly match the local library. Verify `/openapi.json` after future deployments.
+The committed Dockerfile and Render Blueprint serve the frontend and API together. See [deployment.md](docs/deployment.md) for reproduction and optional shared storage configuration. Statistical API version 0.3.0 from commit `de729ae` was verified publicly; analyses for all three datasets and both models exactly match the local library. The new three-tab interface is locally verified and requires deployment of the latest source. Verify the visible tabs and analysis results after interface deployments; the API version remains 0.3.0 because the statistical engine is unchanged.
 
 Open dispatches and added completed calls remain browser-local and source-specific. Shared mode applies to resolution reviews, not the dispatch register. No authenticated agency-wide dispatch database, correction audit trail, background emergency notification, or clinical outcome model is supplied. Review notes should use synthetic/nonpersonal aliases and information. Free Render instance files are ephemeral; a configured SQLite path alone does not prove durable storage.
 

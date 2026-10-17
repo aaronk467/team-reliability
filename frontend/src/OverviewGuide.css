@@ -1,0 +1,230 @@
+.overview-guide,
+.fault-tree {
+  padding: 25px;
+}
+.overview-guide-intro {
+  max-width: 850px;
+}
+.overview-guide-eyebrow {
+  color: #267d91;
+  display: block;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.overview-guide h2 {
+  font-family: Manrope, sans-serif;
+  font-size: 22px;
+  line-height: 1.4;
+  margin: 0 0 9px;
+  letter-spacing: -0.45px;
+}
+.overview-guide p,
+.fault-tree p {
+  color: #617587;
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 0;
+}
+.overview-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 24px 0 0;
+  margin: 0;
+  list-style: none;
+}
+.overview-guide-steps > li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.overview-guide-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: #e9f3f6;
+  color: #267d91;
+  font-weight: 750;
+  font-size: 12px;
+}
+.overview-guide-steps h3 {
+  font-size: 13px;
+  margin: 4px 0 7px;
+}
+.overview-guide-footer {
+  border-top: 1px solid #e6edf2;
+  padding-top: 18px;
+  margin-top: 23px;
+}
+.overview-guide-footer strong,
+.fault-tree-footer strong {
+  color: #344e62;
+}
+.overview-guide-actions {
+  display: flex;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.overview-guide-actions button,
+.fault-tree-footer button {
+  color: #267d91;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.overview-guide-actions button:hover,
+.fault-tree-footer button:hover {
+  text-decoration: underline;
+}
+.fault-tree-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.fault-tree-heading h3 {
+  font-size: 16px;
+  margin: 0 0 7px;
+}
+.fault-tree-zone {
+  flex-shrink: 0;
+  color: #4b677b;
+  font-size: 11px;
+  background: #f1f5f8;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.fault-tree-top {
+  max-width: 570px;
+  margin: 24px auto 0;
+  border: 1px solid #e4c4b8;
+  border-radius: 8px;
+  background: #fcf4f0;
+  padding: 15px;
+  text-align: center;
+}
+.fault-tree-top span {
+  display: block;
+  font-size: 10px;
+  color: #8a614e;
+  margin-bottom: 6px;
+}
+.fault-tree-top strong {
+  color: #774e3b;
+  font-size: 14px;
+}
+.fault-tree-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  position: relative;
+  padding: 22px 0 15px;
+}
+.fault-tree-gate::before {
+  content: "";
+  height: 16px;
+  width: 1px;
+  background: #a8bbc9;
+  position: absolute;
+  top: 0;
+}
+.fault-tree-gate strong {
+  color: #47677a;
+  border: 1px solid #c9d7e0;
+  background: #f4f8fa;
+  border-radius: 15px;
+  padding: 4px 14px;
+  font-size: 11px;
+}
+.fault-tree-gate span {
+  color: #617587;
+  font-size: 11px;
+}
+.fault-tree-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 14px 0 0;
+  gap: 16px;
+  position: relative;
+}
+.fault-tree-paths::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(100% / 6);
+  right: calc(100% / 6);
+  height: 1px;
+  background: #a8bbc9;
+}
+.fault-tree-paths > li {
+  position: relative;
+  border: 1px solid #dce6ed;
+  border-radius: 8px;
+  background: #f9fbfc;
+  padding: 16px;
+}
+.fault-tree-paths > li::before {
+  content: "";
+  position: absolute;
+  top: -15px;
+  height: 14px;
+  width: 1px;
+  left: 50%;
+  background: #a8bbc9;
+}
+.fault-tree-paths h4 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.fault-tree-paths .fault-tree-question {
+  color: #344e62;
+  font-weight: 550;
+  margin-bottom: 6px;
+}
+.fault-tree-footer {
+  margin-top: 18px;
+}
+.fault-tree-footer button {
+  margin-top: 8px;
+}
+@media (max-width: 900px) {
+  .overview-guide-steps {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+  .fault-tree-heading {
+    flex-direction: column;
+  }
+  .fault-tree-paths {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-top: 0;
+  }
+  .fault-tree-paths::before,
+  .fault-tree-paths > li::before {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .overview-guide,
+  .fault-tree {
+    padding: 18px;
+  }
+  .overview-guide h2 {
+    font-size: 19px;
+  }
+}
