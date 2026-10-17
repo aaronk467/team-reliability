@@ -1,0 +1,62 @@
+.about-page {
+  max-width: 900px;
+  padding: 30px;
+}
+.about-purpose p {
+  margin: 0;
+  color: #526b7e;
+  font-size: 15px;
+  line-height: 1.85;
+}
+.about-team {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #e2eaf1;
+}
+.about-team h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+}
+.about-developers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.about-developers li {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 18px;
+  border: 1px solid #dfe9ef;
+  border-radius: 8px;
+  background: #f8fbfc;
+  font-size: 14px;
+  font-weight: 650;
+  color: #304e63;
+}
+.about-initials {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e4f1f4;
+  color: #1c758b;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+@media (max-width: 650px) {
+  .about-page {
+    padding: 22px;
+  }
+  .about-purpose p {
+    font-size: 14px;
+  }
+  .about-developers {
+    grid-template-columns: 1fr;
+  }
+}

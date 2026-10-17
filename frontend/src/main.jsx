@@ -9,6 +9,7 @@ import {
   Clock3,
   Download,
   FileText,
+  Info,
   LayoutDashboard,
   MapPin,
   Plus,
@@ -23,6 +24,7 @@ import OpenCalls from "./OpenCalls";
 import DelayPatterns from "./DelayPatterns";
 import { StatisticsGuide, FaultTreeGuide } from "./OverviewGuide";
 import CallInspection from "./CallInspection";
+import AboutPage from "./AboutPage";
 import "./Workspace.css";
 const workspaceTabs = [
   {
@@ -49,7 +51,9 @@ const workspaceTabs = [
 ];
 function readTab() {
   const id = window.location.hash.slice(1);
-  return [...workspaceTabs.map((item) => item.id), "methods"].includes(id)
+  return [...workspaceTabs.map((item) => item.id), "methods", "about"].includes(
+    id,
+  )
     ? id
     : "overview";
 }
@@ -291,7 +295,11 @@ function App() {
     window.history.replaceState(null, "", `#${next}`);
     requestAnimationFrame(() => {
       const destination = document.getElementById(
-        next === "methods" ? "methods-title" : `tab-${next}`,
+        next === "methods"
+          ? "methods-title"
+          : next === "about"
+            ? "about-title"
+            : `tab-${next}`,
       );
       destination?.focus({ preventScroll: true });
       destination?.scrollIntoView({ block: "nearest" });
@@ -640,6 +648,14 @@ function App() {
         >
           <FileText size={18} /> Methods & guidance
         </button>
+        <button
+          className={tab === "about" ? "nav-item active" : "nav-item"}
+          onClick={() => navigateTab("about")}
+          aria-current={tab === "about" ? "page" : undefined}
+          title="About"
+        >
+          <Info size={18} /> About
+        </button>
         <div className="sidebar-bottom">
           <ShieldCheck size={21} />
           <strong>Better signals. Better response.</strong>
@@ -654,7 +670,7 @@ function App() {
           <div className="breadcrumb">
             Workspace <span>/</span>{" "}
             {workspaceTabs.find((item) => item.id === tab)?.label ||
-              "Methods & guidance"}
+              (tab === "about" ? "About" : "Methods & guidance")}
           </div>
           <div className="header-right">
             <span className="demo-dot" /> Demonstration environment{" "}
@@ -665,18 +681,25 @@ function App() {
           <div className="title-row">
             <div>
               <div className="eyebrow">DISPATCH PERFORMANCE</div>
-              <h1>
+              <h1
+                id={tab === "about" ? "about-title" : undefined}
+                tabIndex={tab === "about" ? -1 : undefined}
+              >
                 {tab === "overview"
                   ? "Understand what matters."
                   : tab === "operations"
                     ? "Track calls. Take action."
                     : tab === "insights"
                       ? "Explore the supporting evidence."
-                      : "Understand the signals."}
+                      : tab === "about"
+                        ? "About ResponseWatch"
+                        : "Understand the signals."}
               </h1>
               <p>
                 {workspaceTabs.find((item) => item.id === tab)?.description ||
-                  "Statistical methods, assumptions, and field collection guidance."}
+                  (tab === "about"
+                    ? "Meet the team behind the project."
+                    : "Statistical methods, assumptions, and field collection guidance.")}
               </p>
             </div>
             {tab === "operations" && (
@@ -703,7 +726,10 @@ function App() {
                 aria-selected={tab === id}
                 aria-controls={"panel-" + id}
                 tabIndex={
-                  tab === id || (tab === "methods" && index === 0) ? 0 : -1
+                  tab === id ||
+                  (["methods", "about"].includes(tab) && index === 0)
+                    ? 0
+                    : -1
                 }
                 onClick={() => navigateTab(id)}
                 onKeyDown={(event) => tabKeyDown(event, index)}
@@ -714,7 +740,7 @@ function App() {
               </button>
             ))}
           </div>
-          <div className="controls panel">
+          <div className="controls panel" hidden={tab === "about"}>
             <div className="control source-control">
               <label htmlFor="dataset">Demonstration dataset</label>
               <select
@@ -822,7 +848,7 @@ function App() {
               </button>
             </div>
           </div>
-          <div className="data-meta">
+          <div className="data-meta" hidden={tab === "about"}>
             <span>
               <i />{" "}
               {busy
@@ -835,14 +861,14 @@ function App() {
               </span>
             )}
           </div>
-          {error && (
+          {error && tab !== "about" && (
             <div className="error" role="alert">
               <AlertTriangle size={18} />
               {error}
             </div>
           )}
-          {notice && <div className="notice">{notice}</div>}
-          <div className="workspace-context">
+          {notice && tab !== "about" && <div className="notice">{notice}</div>}
+          <div className="workspace-context" hidden={tab === "about"}>
             <label htmlFor="focus-zone">Focus zone</label>
             <select
               id="focus-zone"
@@ -1454,7 +1480,7 @@ function App() {
               </>
             )}
           </section>
-          <div className="footnote">
+          <div className="footnote" hidden={tab === "about"}>
             <ShieldCheck size={16} />
             <p>
               {result?.warnings?.join(" ") ||
@@ -1552,6 +1578,7 @@ function App() {
               </p>
             </section>
           )}
+          {tab === "about" && <AboutPage />}
           <footer>
             ResponseWatch{" "}
             <span>
@@ -1563,6 +1590,12 @@ function App() {
               onClick={() => navigateTab("methods")}
             >
               Methods & guidance
+            </button>
+            <button
+              className="text-button"
+              onClick={() => navigateTab("about")}
+            >
+              About
             </button>
             <a href="/docs" target="_blank" rel="noreferrer">
               API documentation <ArrowUpRight size={12} />
