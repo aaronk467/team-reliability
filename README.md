@@ -77,7 +77,7 @@ The [validation record](docs/VALIDATION.md) records local and public release che
 
 Run `.venv/bin/python -m pytest -q`. The [benchmark](benchmarks/README.md) compares predictive and plug-in limits with 200 runs per main scenario and prespecified sensitivity cases. Reproduce it with `.venv/bin/python scripts/benchmark.py --output /tmp/benchmark.json`. Results include Monte Carlo uncertainty and detection delay; no universal false-alarm guarantee is claimed.
 
-CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates CSVs in a temporary directory, builds React/Vite, and exercises the built application in Chromium. The browser script is `python scripts/browser_smoke.py --url http://127.0.0.1:8000 --browser auto` after installing Playwright 1.62.0 and its Chromium browser. The [GitHub CI run for this release](https://github.com/aaronk467/team-reliability/actions/runs/38975394899) passed the full pipeline.
+CI installs pinned dependencies, runs statistical/API/dataset tests, regenerates CSVs in a temporary directory, builds React/Vite, and exercises the built application in Chromium. The browser script is `python scripts/browser_smoke.py --url http://127.0.0.1:8000 --browser auto` after installing Playwright 1.62.0 and its Chromium browser. The [GitHub CI run for the three-tab interface](https://github.com/aaronk467/team-reliability/actions/runs/38989878604) passed the full pipeline, including keyboard navigation, draft preservation, completed-call inspection and mobile checks.
 
 ## Deployment and storage limits
 

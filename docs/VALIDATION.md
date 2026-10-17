@@ -6,7 +6,7 @@ The interface groups the same statistical analysis into Key statistics, Dispatch
 
 Local verification passed the 56-test statistical/API suite and Vite production build. The updated Chromium workflow passed mouse/keyboard navigation, shared settings/zone selection, active-tab reload, preservation of unsaved dispatch/arrival/review drafts, and selected-call comparisons against API results. It also checked an exactly-at-target response and unavailable limits from a one-call baseline. Existing demo outcomes, model switching, logging, review persistence, export, validation errors, and all three tabs at 390px passed with no page errors. Final layout checks confirmed that the completed-record table scrolls independently and Methods & guidance remains reachable on mobile.
 
-These interface checks are local until the latest source is deployed and verified publicly. The public version 0.3 checks below describe the previous deployed interface.
+The [GitHub CI run for interface commit c771b9f](https://github.com/aaronk467/team-reliability/actions/runs/38989878604) also passed the complete installation, 56 tests, exact dataset regeneration, production build and Chromium workflow. Public interface verification is pending deployment of the latest source. The public version 0.3 checks below describe the previous deployed interface.
 
 ## Version 0.3 local verification
 
